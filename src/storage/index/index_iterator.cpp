@@ -12,19 +12,57 @@ namespace bustub {
  * set your own input parameters
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator() = default;
+INDEXITERATOR_TYPE::IndexIterator(Page *page, int index, BufferPoolManager *buffer_pool_manager, bool isEnd) {
+  cur_node_ = reinterpret_cast<LeafPage *>(page->GetData());
+  page_ = page;
+  now_index_ = index;
+  this->buffer_pool_manager_ = buffer_pool_manager;
+  if (isEnd) {
+    cur_page_id_ = INVALID_PAGE_ID;
+  } else {
+    cur_page_id_ = page->GetPageId();
+  }
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::~IndexIterator() = default;
+INDEXITERATOR_TYPE::~IndexIterator() {
+  if (page_ != nullptr) {
+    page_->RUnlatch();
+    buffer_pool_manager_->UnpinPage(page_->GetPageId(), false);
+  }
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-bool INDEXITERATOR_TYPE::isEnd() { throw std::runtime_error("unimplemented"); }
+bool INDEXITERATOR_TYPE::isEnd() { return cur_page_id_ == INVALID_PAGE_ID; }
 
 INDEX_TEMPLATE_ARGUMENTS
-const MappingType &INDEXITERATOR_TYPE::operator*() { throw std::runtime_error("unimplemented"); }
+const MappingType &INDEXITERATOR_TYPE::operator*() { return cur_node_->GetItem(now_index_); }
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() { throw std::runtime_error("unimplemented"); }
+INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
+  if (now_index_ == cur_node_->GetSize() - 1) {
+    int next_page_id = cur_node_->GetNextPageId();
+    buffer_pool_manager_->UnpinPage(cur_node_->GetPageId(), false);
+    if (next_page_id == INVALID_PAGE_ID) {
+      cur_node_ = nullptr;
+      cur_page_id_ = INVALID_PAGE_ID;
+    } else {
+      page_->RUnlatch();
+      buffer_pool_manager_->UnpinPage(page_->GetPageId(), false);
+      page_ = buffer_pool_manager_->FetchPage(next_page_id);
+      if (page_ == nullptr) {
+        throw Exception(ExceptionType::OUT_OF_MEMORY, "fetch error!");
+      }
+      page_->RLatch();
+      cur_node_ = reinterpret_cast<LeafPage *>(page_->GetData());
+      cur_page_id_ = page_->GetPageId();
+    }
+    now_index_ = 0;
+  } else {
+    now_index_++;
+  }
+  return *this;
+}
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 
