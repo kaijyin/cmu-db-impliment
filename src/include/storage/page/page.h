@@ -49,16 +49,28 @@ class Page {
   inline bool IsDirty() { return is_dirty_; }
 
   /** Acquire the page write latch. */
-  inline void WLatch() { rwlatch_.WLock(); }
+  inline void WLatch() {
+    rwlatch_.WLock();
+    // std::cout<<page_id_<<" WLatch\n";
+  }
 
   /** Release the page write latch. */
-  inline void WUnlatch() { rwlatch_.WUnlock(); }
+  inline void WUnlatch() {
+    rwlatch_.WUnlock();
+    // std::cout<<page_id_<<" WULatch\n";
+  }
 
   /** Acquire the page read latch. */
-  inline void RLatch() { rwlatch_.RLock(); }
+  inline void RLatch() {
+    rwlatch_.RLock();
+    // std::cout<<page_id_<<" RLatch\n";
+  }
 
   /** Release the page read latch. */
-  inline void RUnlatch() { rwlatch_.RUnlock(); }
+  inline void RUnlatch() {
+    rwlatch_.RUnlock();
+    // std::cout<<page_id_<<" RULatch\n";
+  }
 
   /** @return the page LSN. */
   inline lsn_t GetLSN() { return *reinterpret_cast<lsn_t *>(GetData() + OFFSET_LSN); }

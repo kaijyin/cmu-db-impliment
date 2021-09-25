@@ -40,20 +40,27 @@ const MappingType &INDEXITERATOR_TYPE::operator*() { return cur_node_->GetItem(n
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
+  if (isEnd()) {
+    return *this;
+  }
   if (now_index_ == cur_node_->GetSize() - 1) {
+    // std::cout<<"to the end and change page\n";
     int next_page_id = cur_node_->GetNextPageId();
-    buffer_pool_manager_->UnpinPage(cur_node_->GetPageId(), false);
     if (next_page_id == INVALID_PAGE_ID) {
-      cur_node_ = nullptr;
-      cur_page_id_ = INVALID_PAGE_ID;
-    } else {
       page_->RUnlatch();
       buffer_pool_manager_->UnpinPage(page_->GetPageId(), false);
-      page_ = buffer_pool_manager_->FetchPage(next_page_id);
-      if (page_ == nullptr) {
+      cur_node_ = nullptr;
+      page_ = nullptr;
+      cur_page_id_ = INVALID_PAGE_ID;
+    } else {
+      Page *next_page = buffer_pool_manager_->FetchPage(next_page_id);
+      if (next_page == nullptr) {
         throw Exception(ExceptionType::OUT_OF_MEMORY, "fetch error!");
       }
-      page_->RLatch();
+      next_page->RLatch();
+      page_->RUnlatch();
+      buffer_pool_manager_->UnpinPage(page_->GetPageId(), false);
+      page_ = next_page;
       cur_node_ = reinterpret_cast<LeafPage *>(page_->GetData());
       cur_page_id_ = page_->GetPageId();
     }

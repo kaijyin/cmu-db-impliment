@@ -77,7 +77,7 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  Page *FindLeafPage(const KeyType &key, bool leftMost = false, LockType lock_type = LockType::NOLOCK,
+  Page *FindLeafPage(const KeyType &key, bool leftMost = false, LockType lock_type = LockType::READ,
                      Transaction *transcation = nullptr);
 
  private:
@@ -85,13 +85,11 @@ class BPlusTree {
   Page *NewPage(page_id_t *page_id);
   int LuckyInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
   bool SadInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
-  bool LuckyRemove(const KeyType &key, Transaction *transaction = nullptr);
+  int LuckyRemove(const KeyType &key, Transaction *transaction = nullptr);
   void SadRemove(const KeyType &key, Transaction *transaction = nullptr);
   void PopLockedPage(LockType lock_type, Transaction *transcation);
-  void UnpinPage(Page *page, bool dirty = false,LockType lock_type = LockType::NOLOCK);
+  void UnpinPage(Page *page, bool dirty = false, LockType lock_type = LockType::NOLOCK);
   void StartNewTree(const KeyType &key, const ValueType &value);
-
-  bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
   void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
                         Transaction *transaction = nullptr);

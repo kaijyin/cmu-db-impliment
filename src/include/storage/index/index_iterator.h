@@ -44,15 +44,7 @@ class IndexIterator {
     return true;
   }
 
-  bool operator!=(const IndexIterator &itr) const {
-    if (itr.cur_page_id_ != cur_page_id_) {
-      return true;
-    }
-    if (itr.now_index_ != now_index_) {
-      return true;
-    }
-    return false;
-  }
+  bool operator!=(const IndexIterator &itr) const { return !operator==(itr); }
 
  private:
   // add your own private member variables here

@@ -165,16 +165,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient
   SetSize(new_size);
 }
 
-INDEX_TEMPLATE_ARGUMENTS
-BPlusTreePage *B_PLUS_TREE_INTERNAL_PAGE_TYPE::FetchBPlusTreePage(page_id_t page_id,
-                                                                  BufferPoolManager *buffer_pool_manager) {
-  Page *page = buffer_pool_manager->FetchPage(page_id);
-  if (page == nullptr) {
-    throw Exception(ExceptionType::OUT_OF_MEMORY, "fetch error");
-  }
-  return reinterpret_cast<BPlusTreePage *>(page->GetData());
-}
-
 /* Copy entries into me, starting from {items} and copy {size} entries.
  * Since it is an internal page, for all entries (pages) moved, their parents page now changes to me.
  * So I need to 'adopt' them by changing their parent page id, which needs to be persisted with BufferPoolManger
@@ -186,9 +176,13 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
   IncreaseSize(size);
   int new_size = GetSize();
   for (int i = pre_size; i < new_size; i++) {
-    BPlusTreePage *page = FetchBPlusTreePage(array_[i].second, buffer_pool_manager);
-    page->SetParentPageId(GetPageId());
-    buffer_pool_manager->UnpinPage(array_[i].second, true);
+    Page *page = buffer_pool_manager->FetchPage(array_[i].second);
+    if (page == nullptr) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "all page pined!");
+    }
+    BPlusTreePage *node = reinterpret_cast<BPlusTreePage *>(page->GetData());
+    node->SetParentPageId(GetPageId());
+    buffer_pool_manager->UnpinPage(page->GetPageId(), true);
   }
 }
 
@@ -268,8 +262,12 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {
   int size = GetSize();
   array_[size] = pair;
-  BPlusTreePage *page = FetchBPlusTreePage(pair.second, buffer_pool_manager);
-  page->SetParentPageId(GetPageId());
+  Page *page = buffer_pool_manager->FetchPage(pair.second);
+  if (page == nullptr) {
+    throw Exception(ExceptionType::OUT_OF_MEMORY, "all page pined!");
+  }
+  BPlusTreePage *node = reinterpret_cast<BPlusTreePage *>(page->GetData());
+  node->SetParentPageId(GetPageId());
   buffer_pool_manager->UnpinPage(page->GetPageId(), true);
   IncreaseSize(1);
 }
@@ -301,8 +299,12 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, Buff
   }
   array_[1].first = pair.first;
   array_[0].second = pair.second;
-  BPlusTreePage *page = FetchBPlusTreePage(pair.second, buffer_pool_manager);
-  page->SetParentPageId(GetPageId());
+  Page *page = buffer_pool_manager->FetchPage(pair.second);
+  if (page == nullptr) {
+    throw Exception(ExceptionType::OUT_OF_MEMORY, "all page pined!");
+  }
+  BPlusTreePage *node = reinterpret_cast<BPlusTreePage *>(page->GetData());
+  node->SetParentPageId(GetPageId());
   buffer_pool_manager->UnpinPage(page->GetPageId(), true);
   IncreaseSize(1);
 }

@@ -53,7 +53,7 @@ INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const {
   int size = GetSize();
   int index = LowerBound(0, size, key, comparator);
-  if (comparator.operator()(key, array_[index].first) != 0) {
+  if (index >= size || comparator.operator()(key, array_[index].first) != 0) {
     return -1;
   }
   return index;
@@ -119,7 +119,7 @@ INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
   int size = GetSize();
   int index = LowerBound(0, size, key, comparator);
-  if (comparator.operator()(array_[index].first, key) == 0) {
+  if (index < size && comparator.operator()(array_[index].first, key) == 0) {
     return size;
   }
   for (int i = size; i > index; i--) {
@@ -235,7 +235,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient) 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
   int size = GetSize();
-  array_[size - 1] = item;
+  array_[size] = item;
   IncreaseSize(1);
 }
 
