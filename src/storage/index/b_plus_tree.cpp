@@ -374,6 +374,11 @@ void BPLUSTREE_TYPE::SadRemove(const KeyType &key, Transaction *transaction) {
   }
   PopLockedPage(LockType::DELETE, transaction);
   UnpinPage(leaf_page, true, LockType::DELETE);
+  auto delete_page_set = *transaction->GetDeletedPageSet().get();
+  for (auto &page_id : delete_page_set) {
+    buffer_pool_manager_->DeletePage(page_id);
+  }
+  delete_page_set.clear();
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -471,6 +476,7 @@ void BPLUSTREE_TYPE::Coalesce(N *neighbor_node, N *node,
                               BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index,
                               Transaction *transaction) {
   BPlusTreePage *page = reinterpret_cast<BPlusTreePage *>(node);
+  transaction->AddIntoDeletedPageSet(page->GetPageId());
   if (page->IsLeafPage()) {
     LeafPage *leaf_page_r = reinterpret_cast<LeafPage *>(page);
     LeafPage *leaf_page_l = reinterpret_cast<LeafPage *>(neighbor_node);
