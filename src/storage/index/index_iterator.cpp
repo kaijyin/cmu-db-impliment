@@ -44,7 +44,6 @@ INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
     return *this;
   }
   if (now_index_ == cur_node_->GetSize() - 1) {
-    // std::cout<<"to the end and change page\n";
     int next_page_id = cur_node_->GetNextPageId();
     if (next_page_id == INVALID_PAGE_ID) {
       page_->RUnlatch();

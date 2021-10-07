@@ -77,14 +77,31 @@ class Catalog {
    */
   TableMetadata *CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema) {
     BUSTUB_ASSERT(names_.count(table_name) == 0, "Table names should be unique!");
-    return nullptr;
+    TableHeap *table_heap = new TableHeap(bpm_, lock_manager_, log_manager_, txn);
+    table_oid_t table_id = next_table_oid_.load();
+    TableMetadata *table_meta_data =
+        new TableMetadata(schema, table_name, std::unique_ptr<TableHeap>(table_heap), table_id);
+    tables_[table_id] = std::unique_ptr<TableMetadata>(table_meta_data);
+    names_[table_name] = table_id;
+    next_table_oid_++;
+    return table_meta_data;
   }
 
   /** @return table metadata by name */
-  TableMetadata *GetTable(const std::string &table_name) { return nullptr; }
+  TableMetadata *GetTable(const std::string &table_name) {
+    if (names_.count(table_name) == 0) {
+      throw std::out_of_range("out of range");
+    }
+    return tables_[names_[table_name]].get();
+  }
 
   /** @return table metadata by oid */
-  TableMetadata *GetTable(table_oid_t table_oid) { return nullptr; }
+  TableMetadata *GetTable(table_oid_t table_oid) {
+    if (tables_.count(table_oid) == 0) {
+      throw std::out_of_range("out of range");
+    }
+    return tables_[table_oid].get();
+  }
 
   /**
    * Create a new index, populate existing data of the table and return its metadata.
@@ -101,14 +118,56 @@ class Catalog {
   IndexInfo *CreateIndex(Transaction *txn, const std::string &index_name, const std::string &table_name,
                          const Schema &schema, const Schema &key_schema, const std::vector<uint32_t> &key_attrs,
                          size_t keysize) {
-    return nullptr;
+    if (names_.count(table_name) == 0) {
+      throw std::out_of_range("out of range");
+    }
+    BUSTUB_ASSERT(index_names_[table_name].count(index_name) == 0, "new index name must be unique!");
+    IndexMetadata *index_meta_data = new IndexMetadata(index_name, table_name, &schema, key_attrs);
+    BPlusTreeIndex<KeyType, ValueType, KeyComparator> *index =
+        new BPlusTreeIndex<KeyType, ValueType, KeyComparator>(index_meta_data, bpm_);
+    auto table_meta_data = tables_[names_[table_name]].get();
+    auto table_heap = table_meta_data->table_.get();
+    auto itr = table_heap->Begin(txn);
+    while (itr != table_heap->End()) {
+      Tuple key_tuple = itr->KeyFromTuple(schema, key_schema, key_attrs);
+      index->InsertEntry(key_tuple, itr->GetRid(), txn);
+      itr++;
+    }
+    index_oid_t index_id = next_index_oid_.load();
+    IndexInfo *index_info =
+        new IndexInfo(key_schema, index_name, std::unique_ptr<Index>(index), index_id, table_name, keysize);
+    indexes_[index_id] = std::unique_ptr<IndexInfo>(index_info);
+    index_names_[table_name][index_name] = index_id;
+    next_index_oid_++;
+    return index_info;
   }
 
-  IndexInfo *GetIndex(const std::string &index_name, const std::string &table_name) { return nullptr; }
+  IndexInfo *GetIndex(const std::string &index_name, const std::string &table_name) {
+    if (index_names_.count(table_name) == 0 || index_names_[table_name].count(index_name) == 0) {
+      throw std::out_of_range("out of range");
+    }
+    return indexes_[index_names_[table_name][index_name]].get();
+  }
 
-  IndexInfo *GetIndex(index_oid_t index_oid) { return nullptr; }
+  IndexInfo *GetIndex(index_oid_t index_oid) {
+    if (indexes_.count(index_oid) == 0) {
+      throw std::out_of_range("out of range");
+    }
+    return indexes_[index_oid].get();
+  }
 
-  std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) { return std::vector<IndexInfo *>(); }
+  std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) {
+    std::vector<IndexInfo *> res;
+    if (index_names_.count(table_name) == 0) {
+      return res;
+    }
+    auto &index_set = index_names_[table_name];
+    for (auto &index : index_set) {
+      index_oid_t index_id = index.second;
+      res.push_back(indexes_[index_id].get());
+    }
+    return res;
+  }
 
  private:
   [[maybe_unused]] BufferPoolManager *bpm_;
