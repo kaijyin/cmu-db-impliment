@@ -19,16 +19,16 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx),
       plan_(plan),
+      table_info_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
       child_executor_(std::move(child_executor)),
       txn_(exec_ctx->GetTransaction()),
-      table_heap_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())->table_.get()) {}
+      table_heap_(table_info_->table_.get()) {}
 
 void UpdateExecutor::Init() { child_executor_->Init(); }
 
 bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
-  Tuple cur_tuple;
-  if (child_executor_->Next(&cur_tuple, rid)) {
-    Tuple new_tuple = GenerateUpdatedTuple(cur_tuple);
+  if (child_executor_->Next(tuple, rid)) {
+    Tuple new_tuple = GenerateUpdatedTuple(*tuple);
     table_heap_->UpdateTuple(new_tuple, *rid, txn_);
     return true;
   }

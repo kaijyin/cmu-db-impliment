@@ -23,20 +23,18 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
       txn_(exec_ctx->GetTransaction()),
       table_meta_data_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
       table_heap_(table_meta_data_->table_.get()),
-      schema_(table_meta_data_->schema_) {}
+      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_meta_data_->name_)) {}
 
 void DeleteExecutor::Init() { child_executor_->Init(); }
 
 bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
-  Tuple cur_tuple;
-  RID cur_rid;
-  if (child_executor_->Next(&cur_tuple, &cur_rid)) {
-    table_heap_->MarkDelete(cur_rid, txn_);
-    auto indexs = GetExecutorContext()->GetCatalog()->GetTableIndexes(table_meta_data_->name_);
-    for (auto &index : indexs) {
+  if (child_executor_->Next(tuple, rid)) {
+    table_heap_->MarkDelete(*rid, txn_);
+    for (auto &index : indexs_) {
       auto cur_index = index->index_.get();
-      Tuple index_tuple = cur_tuple.KeyFromTuple(schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
-      cur_index->DeleteEntry(index_tuple, *rid, txn_);
+      Tuple index_tuple =
+          tuple->KeyFromTuple(table_meta_data_->schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
+      cur_index->DeleteEntry(*tuple, *rid, txn_);
     }
     return true;
   }

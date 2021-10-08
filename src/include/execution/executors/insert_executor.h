@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -51,7 +52,7 @@ class InsertExecutor : public AbstractExecutor {
   Transaction *txn_;
   TableMetadata *table_meta_data_;
   TableHeap *table_heap_;
-  Schema schema_;
   uint32_t now_row{0};
+  std::vector<bustub::IndexInfo *> indexs_;
 };
 }  // namespace bustub

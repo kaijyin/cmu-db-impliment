@@ -54,6 +54,6 @@ class DeleteExecutor : public AbstractExecutor {
   Transaction *txn_;
   TableMetadata *table_meta_data_;
   TableHeap *table_heap_;
-  Schema schema_;
+  std::vector<bustub::IndexInfo *> indexs_;
 };
 }  // namespace bustub

@@ -50,6 +50,5 @@ class IndexScanExecutor : public AbstractExecutor {
   TableHeap *table_heap_;
   BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *index_;
   IndexIterator<GenericKey<8>, RID, GenericComparator<8>> next_itr_;
-  Schema schema_;
 };
 }  // namespace bustub

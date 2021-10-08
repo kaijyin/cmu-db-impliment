@@ -46,6 +46,5 @@ class SeqScanExecutor : public AbstractExecutor {
   TableMetadata *table_meta_;
   TableHeap *table_heap_;
   TableIterator next_itr_;
-  Schema schema_;
 };
 }  // namespace bustub

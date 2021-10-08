@@ -84,5 +84,6 @@ class UpdateExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   Transaction *txn_;
   TableHeap *table_heap_;
+  std::vector<bustub::IndexInfo *> indexs_;
 };
 }  // namespace bustub

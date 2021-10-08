@@ -20,8 +20,7 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
       table_meta_data_(exec_ctx->GetCatalog()->GetTable(index_info_->table_name_)),
       table_heap_(table_meta_data_->table_.get()),
       index_(reinterpret_cast<BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *>(index_info_->index_.get())),
-      next_itr_(index_->GetEndIterator()),
-      schema_(table_meta_data_->schema_) {}
+      next_itr_(index_->GetEndIterator()) {}
 
 void IndexScanExecutor::Init() { next_itr_ = index_->GetBeginIterator(); }
 
@@ -34,12 +33,12 @@ bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
     if (predicate != nullptr) {
       cur_rid = (*next_itr_).second;
       table_heap_->GetTuple(cur_rid, &cur_tuple, txn_);
-      pass = predicate->Evaluate(&cur_tuple, &schema_).GetAs<bool>();
+      pass = predicate->Evaluate(&cur_tuple, &table_meta_data_->schema_).GetAs<bool>();
     }
     if (pass) {
       std::vector<Value> valus;
       for (auto &col : GetOutputSchema()->GetColumns()) {
-        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, &schema_));
+        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, &table_meta_data_->schema_));
       }
       *tuple = Tuple(valus, GetOutputSchema());
       *rid = cur_rid;
