@@ -23,9 +23,7 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
       next_itr_(index_->GetEndIterator()),
       schema_(table_meta_data_->schema_) {}
 
-void IndexScanExecutor::Init() {
-  next_itr_ = index_->GetBeginIterator();
-}
+void IndexScanExecutor::Init() { next_itr_ = index_->GetBeginIterator(); }
 
 bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
   Tuple cur_tuple;
@@ -40,8 +38,8 @@ bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
     }
     if (pass) {
       std::vector<Value> valus;
-      for (auto &col:GetOutputSchema()->GetColumns()) {
-        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple,&schema_));
+      for (auto &col : GetOutputSchema()->GetColumns()) {
+        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, &schema_));
       }
       *tuple = Tuple(valus, GetOutputSchema());
       *rid = cur_rid;

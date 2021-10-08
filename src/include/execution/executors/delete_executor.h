@@ -52,7 +52,7 @@ class DeleteExecutor : public AbstractExecutor {
   /** The child executor to obtain rid from. */
   std::unique_ptr<AbstractExecutor> child_executor_;
   Transaction *txn_;
-  TableMetadata*table_meta_data_;
+  TableMetadata *table_meta_data_;
   TableHeap *table_heap_;
   Schema schema_;
 };

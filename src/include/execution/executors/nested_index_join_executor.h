@@ -50,5 +50,11 @@ class NestIndexJoinExecutor : public AbstractExecutor {
  private:
   /** The nested index join plan node. */
   const NestedIndexJoinPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  Transaction *txn_;
+  TableMetadata *table_meta_data_;
+  TableHeap *table_heap_;
+  IndexInfo *index_info_;
+  BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *index_;
 };
 }  // namespace bustub

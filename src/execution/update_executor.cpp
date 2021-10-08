@@ -26,8 +26,9 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 void UpdateExecutor::Init() { child_executor_->Init(); }
 
 bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
-  if (child_executor_->Next(tuple, rid)) {
-    Tuple new_tuple = GenerateUpdatedTuple(*tuple);
+  Tuple cur_tuple;
+  if (child_executor_->Next(&cur_tuple, rid)) {
+    Tuple new_tuple = GenerateUpdatedTuple(cur_tuple);
     table_heap_->UpdateTuple(new_tuple, *rid, txn_);
     return true;
   }

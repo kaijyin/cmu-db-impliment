@@ -25,7 +25,7 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
 void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
-  left_executor_->Next(&left_tuple, &left_rid);                                    
+  left_executor_->Next(&left_tuple, &left_rid);
 }
 
 bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
@@ -49,9 +49,9 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
               .GetAs<bool>();
   }
   std::vector<Value> valus;
-  for (auto &col:GetOutputSchema()->GetColumns()) {
-      valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple,left_executor_->GetOutputSchema(),
-      &right_tuple,right_executor_->GetOutputSchema()));
+  for (auto &col : GetOutputSchema()->GetColumns()) {
+    valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(), &right_tuple,
+                                                right_executor_->GetOutputSchema()));
   }
   *tuple = Tuple(valus, GetOutputSchema());
   return true;

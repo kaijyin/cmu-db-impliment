@@ -22,9 +22,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
       next_itr_(table_heap_->End()),
       schema_(table_meta_->schema_) {}
 
-void SeqScanExecutor::Init() {
-  next_itr_ = table_heap_->Begin(txn_);
-}
+void SeqScanExecutor::Init() { next_itr_ = table_heap_->Begin(txn_); }
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
   while (next_itr_ != table_heap_->End()) {
@@ -36,7 +34,7 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
     if (pass) {
       std::vector<Value> valus;
       for (auto &col : GetOutputSchema()->GetColumns()) {
-        valus.push_back(col.GetExpr()->Evaluate(&*next_itr_,&schema_));
+        valus.push_back(col.GetExpr()->Evaluate(&*next_itr_, &schema_));
       }
       *tuple = Tuple(valus, GetOutputSchema());
       *rid = next_itr_->GetRid();
@@ -47,4 +45,5 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
   }
   return false;
 }
+
 }  // namespace bustub

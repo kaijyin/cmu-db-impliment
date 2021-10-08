@@ -28,14 +28,16 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 void DeleteExecutor::Init() { child_executor_->Init(); }
 
 bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
-  if (child_executor_->Next(tuple, rid)) {
-    table_heap_->MarkDelete(*rid, txn_);
+  Tuple cur_tuple;
+  RID cur_rid;
+  if (child_executor_->Next(&cur_tuple, &cur_rid)) {
+    table_heap_->MarkDelete(cur_rid, txn_);
     auto indexs = GetExecutorContext()->GetCatalog()->GetTableIndexes(table_meta_data_->name_);
     for (auto &index : indexs) {
-    auto cur_index = index->index_.get();
-    Tuple index_tuple = tuple->KeyFromTuple(schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
-    cur_index->DeleteEntry(*tuple, *rid, txn_);
-  }
+      auto cur_index = index->index_.get();
+      Tuple index_tuple = cur_tuple.KeyFromTuple(schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
+      cur_index->DeleteEntry(index_tuple, *rid, txn_);
+    }
     return true;
   }
   return false;
