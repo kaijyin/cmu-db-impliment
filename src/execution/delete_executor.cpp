@@ -29,14 +29,24 @@ void DeleteExecutor::Init() { child_executor_->Init(); }
 
 bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   if (child_executor_->Next(tuple, rid)) {
+    auto lock_manager = GetExecutorContext()->GetLockManager();
+    if (!lock_manager->LockExclusive(txn_, *rid)) {
+      GetExecutorContext()->GetTransactionManager()->Abort(txn_);
+      return false;
+    }
     table_heap_->MarkDelete(*rid, txn_);
+    txn_->AppendTableWriteRecord(TableWriteRecord(*rid, WType::DELETE, Tuple(), table_heap_));
     for (auto &index : indexs_) {
-      auto cur_index = index->index_.get();
       Tuple index_tuple =
-          tuple->KeyFromTuple(table_meta_data_->schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
-      cur_index->DeleteEntry(*tuple, *rid, txn_);
+          tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
+      index->index_->InsertEntry(*tuple, *rid, txn_);
+      txn_->AppendTableWriteRecord(IndexWriteRecord(*rid, table_meta_data_->oid_, WType::DELETE, *tuple,
+                                                    index->index_oid_, GetExecutorContext()->GetCatalog()));
     }
     return true;
+  }
+  if (child_executor_->GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
   }
   return false;
 }

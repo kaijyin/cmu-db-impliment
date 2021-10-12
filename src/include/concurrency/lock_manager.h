@@ -15,14 +15,18 @@
 #include <algorithm>
 #include <condition_variable>  // NOLINT
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "common/rid.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -34,20 +38,13 @@ class TransactionManager;
 class LockManager {
   enum class LockMode { SHARED, EXCLUSIVE };
 
-  class LockRequest {
-   public:
-    LockRequest(txn_id_t txn_id, LockMode lock_mode) : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
-
-    txn_id_t txn_id_;
-    LockMode lock_mode_;
-    bool granted_;
-  };
-
   class LockRequestQueue {
    public:
-    std::list<LockRequest> request_queue_;
+    std::unordered_set<txn_id_t> share_locked_req_sets_;
+    std::unordered_map<txn_id_t, bool> req_list_;
     std::condition_variable cv_;  // for notifying blocked transactions on this rid
     bool upgrading_ = false;
+    txn_id_t exclusive_locked_txn_ = -1;
   };
 
  public:
@@ -132,14 +129,38 @@ class LockManager {
   void RunCycleDetection();
 
  private:
+  txn_id_t dfs(txn_id_t now_id, std::unordered_map<txn_id_t, bool> &vis, txn_id_t &cycle_node, txn_id_t *res) {
+    if (*res != -1) {
+      return -1;
+    }
+    if (vis[now_id]) {
+      cycle_node = now_id;
+      return now_id;
+    }
+    vis[now_id] = true;
+    for (auto &id : waits_for_[now_id]) {
+      auto child_min = dfs(id, vis, cycle_node, res);
+      if (child_min != -1) {
+        if (now_id == cycle_node) {
+          *res = child_min;
+          return -1;
+        } else {
+          return child_min > now_id ? now_id : child_min;
+        }
+      }
+    }
+    return -1;
+  }
   std::mutex latch_;
+  std::mutex mu_;
   std::atomic<bool> enable_cycle_detection_;
   std::thread *cycle_detection_thread_;
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
   /** Waits-for graph representation. */
-  std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  std::map<txn_id_t, std::set<txn_id_t>> waits_for_;
+  std::unordered_map<txn_id_t, std::unordered_set<txn_id_t>> be_wait_;
 };
 
 }  // namespace bustub

@@ -78,11 +78,12 @@ class UpdateExecutor : public AbstractExecutor {
  private:
   /** The update plan node to be executed. */
   const UpdatePlanNode *plan_;
+  Transaction *txn_;
+  Transaction *child_txn_;
   /** Metadata identifying the table that should be updated. */
-  const TableMetadata *table_info_;
+  const TableMetadata *table_meta_data_;
   /** The child executor to obtain value from. */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  Transaction *txn_;
   TableHeap *table_heap_;
   std::vector<bustub::IndexInfo *> indexs_;
 };

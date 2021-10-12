@@ -20,6 +20,7 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
                                          std::unique_ptr<AbstractExecutor> &&child)
     : AbstractExecutor(exec_ctx),
       plan_(plan),
+      txn_(exec_ctx->GetTransaction()),
       child_(std::move(child)),
       aht_(plan_->GetAggregates(), plan_->GetAggregateTypes()),
       aht_iterator_(aht_.End()) {}
@@ -39,6 +40,10 @@ void AggregationExecutor::Init() {
 }
 
 bool AggregationExecutor::Next(Tuple *tuple, RID *rid) {
+  if (child_->GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
+    return false;
+  }
   while (aht_iterator_ != aht_.End()) {
     auto &group_bys = aht_iterator_.Key().group_bys_;
     auto &aggregates = aht_iterator_.Val().aggregates_;

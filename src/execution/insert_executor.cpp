@@ -41,18 +41,24 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     *tuple = Tuple(row, &table_meta_data_->schema_);
   } else {
     if (!child_executor_->Next(tuple, rid)) {
+      if (child_executor_->GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+        GetExecutorContext()->GetTransactionManager()->Abort(txn_);
+      }
       return false;
     }
   }
   bool insert_into_table = table_heap_->InsertTuple(*tuple, rid, txn_);
   if (!insert_into_table) {
+    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
     return false;
   }
+  txn_->AppendTableWriteRecord(TableWriteRecord(*rid, WType::INSERT, Tuple(), table_heap_));
   for (auto &index : indexs_) {
-    auto cur_index = index->index_.get();
     Tuple index_tuple =
-        tuple->KeyFromTuple(table_meta_data_->schema_, *cur_index->GetKeySchema(), cur_index->GetKeyAttrs());
-    cur_index->InsertEntry(*tuple, *rid, txn_);
+        tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
+    index->index_->InsertEntry(index_tuple, *rid, txn_);
+    txn_->AppendTableWriteRecord(IndexWriteRecord(*rid, table_meta_data_->oid_, WType::INSERT, *tuple,
+                                                  index->index_oid_, GetExecutorContext()->GetCatalog()));
   }
   return true;
 }

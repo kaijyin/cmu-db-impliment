@@ -193,6 +193,7 @@ class AggregationExecutor : public AbstractExecutor {
  private:
   /** The aggregation plan node. */
   const AggregationPlanNode *plan_;
+  Transaction *txn_;
   /** The child executor whose tuples we are aggregating. */
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table. */
