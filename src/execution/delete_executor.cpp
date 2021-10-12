@@ -39,7 +39,7 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
     for (auto &index : indexs_) {
       Tuple index_tuple =
           tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
-      index->index_->InsertEntry(*tuple, *rid, txn_);
+      index->index_->InsertEntry(index_tuple, *rid, txn_);
       txn_->AppendTableWriteRecord(IndexWriteRecord(*rid, table_meta_data_->oid_, WType::DELETE, *tuple,
                                                     index->index_oid_, GetExecutorContext()->GetCatalog()));
     }
