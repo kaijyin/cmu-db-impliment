@@ -43,7 +43,7 @@ class SeqScanExecutor : public AbstractExecutor {
   /** The sequential scan plan node to be executed. */
   const SeqScanPlanNode *plan_;
   Transaction *txn_;
-  TableMetadata *table_meta_;
+  TableMetadata *table_info_;
   TableHeap *table_heap_;
   TableIterator next_itr_;
 };

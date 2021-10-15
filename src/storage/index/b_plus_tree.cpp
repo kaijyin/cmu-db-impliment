@@ -593,11 +593,11 @@ Page *BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool leftMost, LockType l
   page_id_t pre_root_id = root_page_id_;
   mu_.unlock();
   Page *page = FetchPage(pre_root_id, lock_type);
-  if (root_page_id_ != pre_root_id) {
+  InternalPage *inter_node = reinterpret_cast<InternalPage *>(page->GetData());
+  if (!inter_node->IsRootPage()) {
     UnpinPage(page, false, lock_type);
     return FindLeafPage(key, leftMost, lock_type, transcation);
   }
-  InternalPage *inter_node = reinterpret_cast<InternalPage *>(page->GetData());
   while (!inter_node->IsLeafPage()) {
     if (lock_type == LockType::READ) {
       PopLockedPage(lock_type, transcation);

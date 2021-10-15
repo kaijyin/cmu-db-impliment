@@ -92,7 +92,7 @@ void DeleteHelperSplit(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree
   delete transaction;
 }
 
-TEST(BPlusTreeConcurrentTest, DISABLED_InsertTest1) {
+TEST(BPlusTreeConcurrentTest, InsertTest1) {
   // create KeyComparator and index schema
   Schema *key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema);
@@ -145,7 +145,7 @@ TEST(BPlusTreeConcurrentTest, DISABLED_InsertTest1) {
   remove("test.log");
 }
 
-TEST(BPlusTreeConcurrentTest, DISABLED_InsertTest2) {
+TEST(BPlusTreeConcurrentTest, InsertTest2) {
   // create KeyComparator and index schema
   Schema *key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema);
@@ -197,7 +197,7 @@ TEST(BPlusTreeConcurrentTest, DISABLED_InsertTest2) {
   remove("test.log");
 }
 
-TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest1) {
+TEST(BPlusTreeConcurrentTest, DeleteTest1) {
   // create KeyComparator and index schema
   Schema *key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema);
@@ -213,7 +213,7 @@ TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest1) {
   (void)header_page;
   // sequential insert
   std::vector<int64_t> keys = {1, 2, 3, 4, 5};
-  InsertHelper(&tree, keys);
+  LaunchParallelTest(10, InsertHelperSplit, &tree, keys, 3);
 
   std::vector<int64_t> remove_keys = {1, 5, 3, 4};
   LaunchParallelTest(2, DeleteHelper, &tree, remove_keys);
@@ -240,7 +240,7 @@ TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest1) {
   remove("test.log");
 }
 
-TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest2) {
+TEST(BPlusTreeConcurrentTest, DeleteTest2) {
   // create KeyComparator and index schema
   Schema *key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema);
@@ -261,7 +261,7 @@ TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest2) {
     keys.push_back(i);
   }
 
-  InsertHelper(&tree, keys);
+  LaunchParallelTest(5, InsertHelperSplit, &tree, keys, 2);
 
   std::vector<int64_t> remove_keys = {1, 4, 3, 2, 5, 6, 299, 295, 296, 298, 297};
   LaunchParallelTest(5, DeleteHelperSplit, &tree, remove_keys, 2);

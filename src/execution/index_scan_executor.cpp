@@ -17,8 +17,8 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
       plan_(plan),
       txn_(exec_ctx->GetTransaction()),
       index_info_(exec_ctx->GetCatalog()->GetIndex(plan_->GetIndexOid())),
-      table_meta_data_(exec_ctx->GetCatalog()->GetTable(index_info_->table_name_)),
-      table_heap_(table_meta_data_->table_.get()),
+      table_info_(exec_ctx->GetCatalog()->GetTable(index_info_->table_name_)),
+      table_heap_(table_info_->table_.get()),
       index_(reinterpret_cast<BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *>(index_info_->index_.get())),
       next_itr_(index_->GetEndIterator()) {}
 
@@ -28,17 +28,19 @@ bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
   Tuple cur_tuple;
   RID cur_rid;
   while (!next_itr_.isEnd()) {
+    cur_rid = (*next_itr_).second;
+    if (!table_heap_->GetTuple(cur_rid, &cur_tuple, txn_)) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "get tuple fail");
+    }
     bool pass = true;
     auto predicate = plan_->GetPredicate();
     if (predicate != nullptr) {
-      cur_rid = (*next_itr_).second;
-      table_heap_->GetTuple(cur_rid, &cur_tuple, txn_);
-      pass = predicate->Evaluate(&cur_tuple, &table_meta_data_->schema_).GetAs<bool>();
+      pass = predicate->Evaluate(&cur_tuple, &table_info_->schema_).GetAs<bool>();
     }
     if (pass) {
       std::vector<Value> valus;
       for (auto &col : GetOutputSchema()->GetColumns()) {
-        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, &table_meta_data_->schema_));
+        valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, &table_info_->schema_));
       }
       *tuple = Tuple(valus, GetOutputSchema());
       *rid = cur_rid;

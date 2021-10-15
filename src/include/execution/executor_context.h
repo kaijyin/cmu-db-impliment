@@ -18,6 +18,7 @@
 
 #include "catalog/catalog.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 #include "storage/page/tmp_tuple_page.h"
 
 namespace bustub {

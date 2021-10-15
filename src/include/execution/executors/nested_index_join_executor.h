@@ -52,7 +52,7 @@ class NestIndexJoinExecutor : public AbstractExecutor {
   const NestedIndexJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   Transaction *txn_;
-  TableMetadata *table_meta_data_;
+  TableMetadata *table_info_;
   TableHeap *table_heap_;
   IndexInfo *index_info_;
   BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *index_;

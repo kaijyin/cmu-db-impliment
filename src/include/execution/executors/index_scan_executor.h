@@ -46,7 +46,7 @@ class IndexScanExecutor : public AbstractExecutor {
   const IndexScanPlanNode *plan_;
   Transaction *txn_;
   IndexInfo *index_info_;
-  TableMetadata *table_meta_data_;
+  TableMetadata *table_info_;
   TableHeap *table_heap_;
   BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *index_;
   IndexIterator<GenericKey<8>, RID, GenericComparator<8>> next_itr_;

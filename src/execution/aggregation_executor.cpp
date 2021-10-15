@@ -21,17 +21,17 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       txn_(exec_ctx->GetTransaction()),
-      child_(std::move(child)),
+      child_executor_(std::move(child)),
       aht_(plan_->GetAggregates(), plan_->GetAggregateTypes()),
       aht_iterator_(aht_.End()) {}
 
-const AbstractExecutor *AggregationExecutor::GetChildExecutor() const { return child_.get(); }
+const AbstractExecutor *AggregationExecutor::GetChildExecutor() const { return child_executor_.get(); }
 
 void AggregationExecutor::Init() {
-  child_->Init();
+  child_executor_->Init();
   Tuple cur_tuple;
   RID cur_rid;
-  while (child_->Next(&cur_tuple, &cur_rid)) {
+  while (child_executor_->Next(&cur_tuple, &cur_rid)) {
     AggregateKey key = MakeKey(&cur_tuple);
     AggregateValue val = MakeVal(&cur_tuple);
     aht_.InsertCombine(key, val);
@@ -40,10 +40,6 @@ void AggregationExecutor::Init() {
 }
 
 bool AggregationExecutor::Next(Tuple *tuple, RID *rid) {
-  if (child_->GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
-    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-    return false;
-  }
   while (aht_iterator_ != aht_.End()) {
     auto &group_bys = aht_iterator_.Key().group_bys_;
     auto &aggregates = aht_iterator_.Val().aggregates_;
@@ -56,7 +52,7 @@ bool AggregationExecutor::Next(Tuple *tuple, RID *rid) {
     }
     std::vector<Value> values;
     for (auto &col : GetOutputSchema()->GetColumns()) {
-      values.push_back(col.GetExpr()->EvaluateAggregate(group_bys, aggregates));
+      values.emplace_back(col.GetExpr()->EvaluateAggregate(group_bys, aggregates));
     }
     *tuple = Tuple(values, GetOutputSchema());
     ++aht_iterator_;

@@ -21,32 +21,35 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
       plan_(plan),
       child_executor_(std::move(child_executor)),
       txn_(exec_ctx->GetTransaction()),
-      table_meta_data_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
-      table_heap_(table_meta_data_->table_.get()),
-      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_meta_data_->name_)) {}
+      table_info_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
+      table_heap_(table_info_->table_.get()),
+      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_info_->name_)) {}
 
 void DeleteExecutor::Init() { child_executor_->Init(); }
 
 bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   if (child_executor_->Next(tuple, rid)) {
     auto lock_manager = GetExecutorContext()->GetLockManager();
-    if (!lock_manager->LockExclusive(txn_, *rid)) {
-      GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-      return false;
+    if (txn_->IsSharedLocked(*rid)) {
+      // LOG_DEBUG("%d want upgrade %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockUpgrade(txn_, *rid);
+      // LOG_DEBUG("%d upgrade %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
+    } else if (!txn_->IsExclusiveLocked(*rid)) {
+      // LOG_DEBUG("%d want exclusive %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockExclusive(txn_, *rid);
+      // LOG_DEBUG("%d exclusive %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
     }
-    table_heap_->MarkDelete(*rid, txn_);
-    txn_->AppendTableWriteRecord(TableWriteRecord(*rid, WType::DELETE, Tuple(), table_heap_));
+    if (!table_heap_->MarkDelete(*rid, txn_)) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "mark delete fail");
+    }
     for (auto &index : indexs_) {
       Tuple index_tuple =
-          tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
-      index->index_->InsertEntry(index_tuple, *rid, txn_);
-      txn_->AppendTableWriteRecord(IndexWriteRecord(*rid, table_meta_data_->oid_, WType::DELETE, *tuple,
-                                                    index->index_oid_, GetExecutorContext()->GetCatalog()));
+          tuple->KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
+      index->index_->DeleteEntry(index_tuple, *rid, txn_);
+      txn_->AppendTableWriteRecord(IndexWriteRecord(*rid, table_info_->oid_, WType::DELETE, *tuple, index->index_oid_,
+                                                    GetExecutorContext()->GetCatalog()));
     }
     return true;
-  }
-  if (child_executor_->GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
-    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
   }
   return false;
 }

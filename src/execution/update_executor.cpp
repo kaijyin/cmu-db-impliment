@@ -1,3 +1,4 @@
+
 //===----------------------------------------------------------------------===//
 //
 //                         BusTub
@@ -20,11 +21,10 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       txn_(exec_ctx->GetTransaction()),
-      child_txn_(child_executor->GetExecutorContext()->GetTransaction()),
-      table_meta_data_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
+      table_info_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
       child_executor_(std::move(child_executor)),
-      table_heap_(table_meta_data_->table_.get()),
-      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_meta_data_->name_)) {}
+      table_heap_(table_info_->table_.get()),
+      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_info_->name_)) {}
 
 void UpdateExecutor::Init() { child_executor_->Init(); }
 
@@ -32,34 +32,34 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *old_tuple, RID *rid) {
   if (child_executor_->Next(old_tuple, rid)) {
     Tuple new_tuple = GenerateUpdatedTuple(*old_tuple);
     auto lock_manager = GetExecutorContext()->GetLockManager();
-    if (!lock_manager->LockExclusive(txn_, *rid)) {
-      GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-      return false;
+    if (txn_->IsSharedLocked(*rid)) {
+      // LOG_DEBUG("%d want upgrade %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockUpgrade(txn_, *rid);
+      // LOG_DEBUG("%d upgrade %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
+    } else if (!txn_->IsExclusiveLocked(*rid)) {
+      // LOG_DEBUG("%d want exclusive %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockExclusive(txn_, *rid);
+      // LOG_DEBUG("%d exclusive %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
     }
-    bool update_sucess = table_heap_->UpdateTuple(new_tuple, *rid, txn_);
-    if (!update_sucess) {
-      GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-      return false;
+    // write record 已经在update中添加了
+    if (!table_heap_->UpdateTuple(new_tuple, *rid, txn_)) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "update tuple fail");
     }
-    txn_->AppendTableWriteRecord(TableWriteRecord(*rid, WType::UPDATE, *old_tuple, table_heap_));
     for (auto &index : indexs_) {
-      Tuple old_index_tuple = old_tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(),
-                                                      index->index_->GetKeyAttrs());
+      Tuple old_index_tuple =
+          old_tuple->KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
       index->index_->DeleteEntry(old_index_tuple, *rid, txn_);
-      Tuple new_index_tuple = old_tuple->KeyFromTuple(table_meta_data_->schema_, *index->index_->GetKeySchema(),
-                                                      index->index_->GetKeyAttrs());
+      Tuple new_index_tuple =
+          new_tuple.KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
       index->index_->InsertEntry(new_index_tuple, *rid, txn_);
-      IndexWriteRecord index_write_record =
-          IndexWriteRecord(*rid, table_meta_data_->oid_, WType::UPDATE, new_index_tuple, index->index_oid_,
-                           GetExecutorContext()->GetCatalog());
+      IndexWriteRecord index_write_record = IndexWriteRecord(*rid, table_info_->oid_, WType::UPDATE, new_index_tuple,
+                                                             index->index_oid_, GetExecutorContext()->GetCatalog());
       index_write_record.old_tuple_ = *old_tuple;
       txn_->AppendTableWriteRecord(index_write_record);
     }
     return true;
   }
-  if (child_txn_->GetState() == TransactionState::ABORTED) {
-    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-  }
   return false;
 }
+
 }  // namespace bustub

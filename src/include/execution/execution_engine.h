@@ -46,10 +46,15 @@ class ExecutionEngine {
           result_set->push_back(tuple);
         }
       }
+    } catch (TransactionAbortException &e) {
+      LOG_DEBUG("execute txn abort exception:%s", e.GetInfo().c_str());
+      txn_mgr_->Abort(txn);
+      return false;
     } catch (Exception &e) {
-      // TODO(student): handle exceptions
+      LOG_DEBUG("execute exception!");
+      txn_mgr_->Abort(txn);
+      return false;
     }
-
     return true;
   }
 

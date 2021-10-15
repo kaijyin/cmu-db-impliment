@@ -176,7 +176,7 @@ class AggregationExecutor : public AbstractExecutor {
   AggregateKey MakeKey(const Tuple *tuple) {
     std::vector<Value> keys;
     for (const auto &expr : plan_->GetGroupBys()) {
-      keys.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      keys.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {keys};
   }
@@ -185,7 +185,7 @@ class AggregationExecutor : public AbstractExecutor {
   AggregateValue MakeVal(const Tuple *tuple) {
     std::vector<Value> vals;
     for (const auto &expr : plan_->GetAggregates()) {
-      vals.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      vals.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {vals};
   }
@@ -195,7 +195,7 @@ class AggregationExecutor : public AbstractExecutor {
   const AggregationPlanNode *plan_;
   Transaction *txn_;
   /** The child executor whose tuples we are aggregating. */
-  std::unique_ptr<AbstractExecutor> child_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
   /** Simple aggregation hash table. */
   SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator. */

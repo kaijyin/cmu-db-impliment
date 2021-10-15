@@ -16,11 +16,13 @@
 #include "concurrency/transaction_manager.h"
 #include "execution/execution_engine.h"
 #include "execution/executor_context.h"
+#include "execution/executors/delete_executor.h"
 #include "execution/executors/insert_executor.h"
 #include "execution/expressions/aggregate_value_expression.h"
 #include "execution/expressions/column_value_expression.h"
 #include "execution/expressions/comparison_expression.h"
 #include "execution/expressions/constant_value_expression.h"
+#include "execution/plans/delete_plan.h"
 #include "execution/plans/limit_plan.h"
 #include "execution/plans/nested_index_join_plan.h"
 #include "execution/plans/seq_scan_plan.h"
@@ -154,7 +156,7 @@ void CheckTxnLockSize(Transaction *txn, size_t shared_size, size_t exclusive_siz
 }
 
 // NOLINTNEXTLINE
-TEST_F(TransactionTest, DISABLED_SimpleInsertRollbackTest) {
+TEST_F(TransactionTest, SimpleInsertRollbackTest) {
   // txn1: INSERT INTO empty_table2 VALUES (200, 20), (201, 21), (202, 22)
   // txn1: abort
   // txn2: SELECT * FROM empty_table2;
@@ -170,7 +172,7 @@ TEST_F(TransactionTest, DISABLED_SimpleInsertRollbackTest) {
   InsertPlanNode insert_plan{std::move(raw_vals), table_info->oid_};
 
   GetExecutionEngine()->Execute(&insert_plan, nullptr, txn1, exec_ctx1.get());
-  GetTxnManager()->Abort(txn1);
+  GetTxnManager()->Commit(txn1);
   delete txn1;
 
   // Iterate through table make sure that values were not inserted.
@@ -181,20 +183,37 @@ TEST_F(TransactionTest, DISABLED_SimpleInsertRollbackTest) {
   auto colB = MakeColumnValueExpression(schema, 0, "colB");
   auto out_schema = MakeOutputSchema({{"colA", colA}, {"colB", colB}});
   SeqScanPlanNode scan_plan{out_schema, nullptr, table_info->oid_};
-
+  DeletePlanNode delete_plan{&scan_plan, table_info->oid_};
   std::vector<Tuple> result_set;
   GetExecutionEngine()->Execute(&scan_plan, &result_set, txn2, exec_ctx2.get());
-
+  int size = static_cast<int>(result_set.size());
+  ASSERT_EQ(size, 3);
+  for (int i = 0; i < size; i++) {
+    std::cout << result_set[i].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>() << " "
+              << result_set[i].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>() << std::endl;
+  }
+  GetExecutionEngine()->Execute(&delete_plan, nullptr, txn2, exec_ctx2.get());
+  result_set.clear();
+  GetExecutionEngine()->Execute(&scan_plan, &result_set, txn2, exec_ctx2.get());
+  size = static_cast<int>(result_set.size());
+  ASSERT_EQ(size, 0);
+  GetTxnManager()->Abort(txn2);
+  auto txn3 = GetTxnManager()->Begin();
+  auto exec_ctx3 = std::make_unique<ExecutorContext>(txn3, GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
   // Size
-  ASSERT_EQ(result_set.size(), 0);
-  std::vector<RID> rids;
-
-  GetTxnManager()->Commit(txn2);
+  result_set.clear();
+  GetExecutionEngine()->Execute(&scan_plan, &result_set, txn3, exec_ctx3.get());
+  size = static_cast<int>(result_set.size());
+  ASSERT_EQ(size, 3);
+  for (int i = 0; i < size; i++) {
+    std::cout << result_set[i].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>() << " "
+              << result_set[i].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>() << std::endl;
+  }
   delete txn2;
 }
 
 // NOLINTNEXTLINE
-TEST_F(TransactionTest, DISABLED_DirtyReadsTest) {
+TEST_F(TransactionTest, DirtyReadsTest) {
   // txn1: INSERT INTO empty_table2 VALUES (200, 20), (201, 21), (202, 22)
   // txn2: SELECT * FROM empty_table2;
   // txn1: abort
@@ -227,7 +246,6 @@ TEST_F(TransactionTest, DISABLED_DirtyReadsTest) {
 
   std::vector<Tuple> result_set;
   GetExecutionEngine()->Execute(&scan_plan, &result_set, txn2, exec_ctx2.get());
-
   GetTxnManager()->Abort(txn1);
   delete txn1;
 

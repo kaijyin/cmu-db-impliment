@@ -125,19 +125,25 @@ class Catalog {
     IndexMetadata *index_meta_data = new IndexMetadata(index_name, table_name, &schema, key_attrs);
     BPlusTreeIndex<KeyType, ValueType, KeyComparator> *index =
         new BPlusTreeIndex<KeyType, ValueType, KeyComparator>(index_meta_data, bpm_);
-    auto table_meta_data = tables_[names_[table_name]].get();
-    auto table_heap = table_meta_data->table_.get();
-    auto itr = table_heap->Begin(txn);
-    while (itr != table_heap->End()) {
-      Tuple key_tuple = itr->KeyFromTuple(schema, key_schema, key_attrs);
-      index->InsertEntry(key_tuple, itr->GetRid(), txn);
-      itr++;
-    }
     index_oid_t index_id = next_index_oid_.load();
     IndexInfo *index_info =
         new IndexInfo(key_schema, index_name, std::unique_ptr<Index>(index), index_id, table_name, keysize);
     indexes_[index_id] = std::unique_ptr<IndexInfo>(index_info);
     index_names_[table_name][index_name] = index_id;
+    auto table_meta_data = tables_[names_[table_name]].get();
+    auto table_heap = table_meta_data->table_.get();
+    auto itr = table_heap->Begin(txn);
+    while (itr != table_heap->End()) {
+      Tuple cur_tuple;
+      if (!table_heap->GetTuple(itr->GetRid(), &cur_tuple, txn)) {
+        throw Exception(ExceptionType::OUT_OF_MEMORY, "get tuple fail");
+      }
+      Tuple key_tuple = cur_tuple.KeyFromTuple(schema, key_schema, key_attrs);
+      index->InsertEntry(key_tuple, itr->GetRid(), txn);
+      txn->AppendTableWriteRecord(
+          IndexWriteRecord(itr->GetRid(), table_meta_data->oid_, WType::INSERT, Tuple{}, index_id, this));
+      itr++;
+    }
     next_index_oid_++;
     return index_info;
   }

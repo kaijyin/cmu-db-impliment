@@ -22,7 +22,6 @@
 #include "recovery/log_manager.h"
 
 namespace bustub {
-class LockManager;
 
 /**
  * TransactionManager keeps track of all the transactions running in the system.

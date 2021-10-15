@@ -14,24 +14,21 @@
 
 #include <algorithm>
 #include <condition_variable>  // NOLINT
-#include <list>
 #include <map>
 #include <memory>
 #include <mutex>  // NOLINT
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+
 #include <utility>
 #include <vector>
 
 #include "common/rid.h"
 #include "concurrency/transaction.h"
-#include "concurrency/transaction_manager.h"
 
 namespace bustub {
-
 class TransactionManager;
-
 /**
  * LockManager handles transactions asking for locks on records.
  */
@@ -41,10 +38,10 @@ class LockManager {
   class LockRequestQueue {
    public:
     std::unordered_set<txn_id_t> share_locked_req_sets_;
-    std::unordered_map<txn_id_t, bool> req_list_;
+    std::unordered_map<txn_id_t, LockMode> req_sets_;
     std::condition_variable cv_;  // for notifying blocked transactions on this rid
     bool upgrading_ = false;
-    txn_id_t exclusive_locked_txn_ = -1;
+    txn_id_t exclusive_locked_txn_ = INVALID_TXN_ID;
   };
 
  public:
@@ -129,27 +126,64 @@ class LockManager {
   void RunCycleDetection();
 
  private:
-  txn_id_t dfs(txn_id_t now_id, std::unordered_map<txn_id_t, bool> &vis, txn_id_t &cycle_node, txn_id_t *res) {
-    if (*res != -1) {
-      return -1;
+  struct TarjanGrap {
+   public:
+    std::unordered_map<txn_id_t, int> low;
+    std::unordered_map<txn_id_t, int> dfn;
+    std::unordered_map<txn_id_t, bool> in_stk;
+    std::vector<txn_id_t> stk;
+    std::map<txn_id_t, std::set<txn_id_t>> waits_for_;
+    int cnt;
+  };
+  bool CheckGrant(Transaction *txn, const RID &rid) {
+    if (lock_table_[rid].exclusive_locked_txn_ != INVALID_TXN_ID) {
+      LOG_DEBUG("grant fail by rid be exlocked");
+      return false;
     }
-    if (vis[now_id]) {
-      cycle_node = now_id;
-      return now_id;
+    if (lock_table_[rid].req_sets_[txn->GetTransactionId()] == LockMode::SHARED) {
+      return true;
     }
-    vis[now_id] = true;
-    for (auto &id : waits_for_[now_id]) {
-      auto child_min = dfs(id, vis, cycle_node, res);
-      if (child_min != -1) {
-        if (now_id == cycle_node) {
-          *res = child_min;
-          return -1;
-        } else {
-          return child_min > now_id ? now_id : child_min;
+    LOG_DEBUG("grant fail by sharreq not empty");
+    return lock_table_[rid].share_locked_req_sets_.empty();
+  }
+  txn_id_t tarjan(txn_id_t u) {
+    graph.low[u] = graph.dfn[u] = ++graph.cnt;
+    graph.stk.push_back(u);
+    graph.in_stk[u] = true;
+    for (auto &v : graph.waits_for_[u]) {
+      if (graph.dfn.find(v) == graph.dfn.end()) {
+        int res = tarjan(v);
+        if (res != INVALID_TXN_ID) {
+          return res;
+        }
+        graph.low[u] = std::min(graph.low[v], graph.low[u]);
+      } else if (graph.in_stk[v]) {
+        LOG_DEBUG("find cycle");
+        txn_id_t max_id = INVALID_TXN_ID;
+        while (true) {
+          auto now = graph.stk.back();
+          LOG_DEBUG("now:%d", now);
+          graph.stk.pop_back();
+          max_id = std::max(max_id, now);
+          graph.in_stk[now] = false;
+          if (v == now) {
+            break;
+          }
+        }
+        return max_id;
+      }
+    }
+    if (graph.low[u] == graph.dfn[u]) {
+      while (true) {
+        auto v = graph.stk.back();
+        graph.stk.pop_back();
+        graph.in_stk[v] = false;
+        if (v == u) {
+          break;
         }
       }
     }
-    return -1;
+    return INVALID_TXN_ID;
   }
   std::mutex latch_;
   std::mutex mu_;
@@ -158,9 +192,9 @@ class LockManager {
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
+  std::unordered_map<txn_id_t, Transaction *> txn_map_;
   /** Waits-for graph representation. */
-  std::map<txn_id_t, std::set<txn_id_t>> waits_for_;
-  std::unordered_map<txn_id_t, std::unordered_set<txn_id_t>> be_wait_;
+  TarjanGrap graph;
 };
 
 }  // namespace bustub

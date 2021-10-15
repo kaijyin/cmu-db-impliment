@@ -20,8 +20,6 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       txn_(exec_ctx->GetTransaction()),
-      left_txn_(left_executor_->GetExecutorContext()->GetTransaction()),
-      right_txn_(right_executor->GetExecutorContext()->GetTransaction()),
       left_executor_(std::move(left_executor)),
       right_executor_(std::move(right_executor)) {}
 
@@ -32,10 +30,6 @@ void NestedLoopJoinExecutor::Init() {
 }
 
 bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
-  if (left_txn_->GetState() == TransactionState::ABORTED) {
-    GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-    return false;
-  }
   if (left_rid.GetPageId() == INVALID_PAGE_ID) {
     return false;
   }
@@ -44,14 +38,7 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
   bool res = false;
   while (!res) {
     while (!right_executor_->Next(&right_tuple, &right_rid)) {
-      if (right_txn_->GetState() == TransactionState::ABORTED) {
-        GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-        return false;
-      }
       if (!left_executor_->Next(&left_tuple, &left_rid)) {
-        if (left_txn_->GetState() == TransactionState::ABORTED) {
-          GetExecutorContext()->GetTransactionManager()->Abort(txn_);
-        }
         return false;
       }
       right_executor_->Init();

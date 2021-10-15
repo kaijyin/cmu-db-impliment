@@ -48,9 +48,9 @@ class InsertExecutor : public AbstractExecutor {
  private:
   /** The insert plan node to be executed. */
   const InsertPlanNode *plan_;
-  std::unique_ptr<AbstractExecutor> child_executor_;
   Transaction *txn_;
-  TableMetadata *table_meta_data_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  TableMetadata *table_info_;
   TableHeap *table_heap_;
   uint32_t now_row{0};
   std::vector<bustub::IndexInfo *> indexs_;
