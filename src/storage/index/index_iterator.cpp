@@ -40,7 +40,7 @@ const MappingType &INDEXITERATOR_TYPE::operator*() { return cur_node_->GetItem(n
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
-  if (isEnd()) {
+  if (IsEnd()) {
     return *this;
   }
   if (now_index_ == cur_node_->GetSize() - 1) {

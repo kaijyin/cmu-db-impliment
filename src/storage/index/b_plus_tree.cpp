@@ -538,7 +538,7 @@ INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin() {
   KeyType key;
   Page *page = FindLeafPage(key, true, LockType::READ);
   if (page == nullptr) {
-    return end();
+    return End();
   }
   return INDEXITERATOR_TYPE(page, 0, buffer_pool_manager_, false);
 }
@@ -551,7 +551,7 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin(const KeyType &key) {
   Page *page = FindLeafPage(key, false, LockType::READ);
   if (page == nullptr) {
-    return end();
+    return End();
   }
   LeafPage *leaf_node = reinterpret_cast<LeafPage *>(page->GetData());
   int index = leaf_node->KeyIndex(key, comparator_);

@@ -77,10 +77,11 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  Page *FindLeafPage(const KeyType &key, bool leftMost = false);
+  Page *FindLeafPage(const KeyType &key, bool leftMost = false, LockType lock_type = LockType::READ,
+                     Transaction *transcation = nullptr);
 
  private:
- Page *FetchPage(page_id_t page_id, LockType lock_type = LockType::NOLOCK);
+  Page *FetchPage(page_id_t page_id, LockType lock_type = LockType::NOLOCK);
   Page *NewPage(page_id_t *page_id);
   int LuckyInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
   bool SadInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
@@ -90,27 +91,26 @@ class BPlusTree {
   void UnpinPage(Page *page, bool dirty = false, LockType lock_type = LockType::NOLOCK);
   void StartNewTree(const KeyType &key, const ValueType &value);
 
-  bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
-
   void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
                         Transaction *transaction = nullptr);
 
   template <typename N>
   N *Split(N *node);
+  template <typename N>
+  bool IsSafe(N *node, LockType lock_type);
 
   template <typename N>
   bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
-  bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
-                int index, Transaction *transaction = nullptr);
+  void Coalesce(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index,
+                Transaction *transaction = nullptr);
 
   template <typename N>
-  void Redistribute(N *neighbor_node, N *node, int index);
+  void Redistribute(N *neighbor_node, N *node, bool move_front,
+                    BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index);
 
-  bool AdjustRoot(BPlusTreePage *node);
-
-  void UpdateRootPageId(int insert_record = 0);
+  void UpdateRootPageId(bool insert_record = false);
 
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
