@@ -32,8 +32,9 @@ namespace bustub {
  * table grows/shrinks dynamically as buckets become full/empty.
  */
 template <typename KeyType, typename ValueType, typename KeyComparator>
-class ExtendibleHashTable  {
-  enum LockMode{READ,WRITE};
+class ExtendibleHashTable {
+  enum LockMode { READ, WRITE };
+
  public:
   /**
    * Creates a new ExtendibleHashTable.
@@ -127,9 +128,9 @@ class ExtendibleHashTable  {
    *
    * @return a pointer to the  page
    */
-  Page *FetchPage(page_id_t page_id,LockMode lock_mode=LockMode::READ);
+  Page *FetchPage(page_id_t page_id, LockMode lock_mode = LockMode::READ);
 
-  void *UnpinPage(Page* page,LockMode lock_mode=LockMode::READ,bool dirty=false);
+  bool UnpinPage(Page *page, LockMode lock_mode = LockMode::READ, bool dirty = false);
 
   /**
    * Performs insertion with an optional bucket splitting.
@@ -155,7 +156,6 @@ class ExtendibleHashTable  {
    * @param value the value that was removed
    */
   void Merge(Transaction *transaction, const KeyType &key, const ValueType &value);
-
 
   // member variables
   page_id_t directory_page_id_;

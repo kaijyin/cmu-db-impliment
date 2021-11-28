@@ -66,7 +66,6 @@ class BufferPoolManagerInstance : public BufferPoolManager {
    */
   Page *FetchPgImp(page_id_t page_id) override;
 
-
   /**
    * Unpin the target page from the buffer pool.
    * @param page_id id of page to be unpinned

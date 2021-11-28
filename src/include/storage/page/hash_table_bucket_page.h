@@ -84,12 +84,11 @@ class HashTableBucketPage {
    * Remove the KV pair at bucket_idx
    */
   void RemoveAt(uint32_t bucket_idx);
-  
+
   /**
    * Remove the KV pair at bucket_idx
    */
-  void InsertAt(uint32_t bucket_idx,KeyType key,ValueType value);
-
+  void InsertAt(uint32_t bucket_idx, KeyType key, ValueType value);
 
   /**
    * Returns whether or not an index is occupied (key/value pair or tombstone)

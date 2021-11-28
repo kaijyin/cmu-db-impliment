@@ -18,15 +18,7 @@ namespace bustub {
 
 BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManager *disk_manager,
                                                      LogManager *log_manager)
-    : BufferPoolManagerInstance(pool_size, 1, 0, disk_manager, log_manager) {
-       pages_ = new Page[pool_size_];
-       replacer_ = new LRUReplacer(pool_size);
-
-    // Initially, every page is in the free list.
-      for (size_t i = 0; i < pool_size_; ++i) {
-       free_list_.emplace_back(static_cast<int>(i));
-      }
-    }
+    : BufferPoolManagerInstance(pool_size, 1, 0, disk_manager, log_manager) {}
 
 BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, uint32_t num_instances, uint32_t instance_index,
                                                      DiskManager *disk_manager, LogManager *log_manager)
@@ -55,17 +47,17 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
 }
 
 bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
- latch_.lock();
+  latch_.lock();
   if (page_table_.count(page_id) == 0U) {
     latch_.unlock();
     return false;
   }
   frame_id_t frame = page_table_[page_id];
-  //不是脏文件是否可以不需要读入磁盘
-  if (!pages_[frame].IsDirty()) {
-    latch_.unlock();
-    return true;
-  }
+  // though not dirty,also flash into disk
+  // if (!pages_[frame].IsDirty()) {
+  //   latch_.unlock();
+  //   return true;
+  // }
   disk_manager_->WritePage(page_id, pages_[frame].data_);
   pages_[frame].is_dirty_ = false;
   latch_.unlock();
@@ -73,18 +65,18 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
 }
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
-latch_.lock();
-for (auto &x : page_table_) {
-  auto page_id=x.first;
-  frame_id_t frame =x.second;
-  //不是脏文件是否可以不需要读入磁盘
-  if (!pages_[frame].IsDirty()) {
-    continue;
+  latch_.lock();
+  for (auto &x : page_table_) {
+    auto page_id = x.first;
+    frame_id_t frame = x.second;
+    // 不是脏文件是否可以不需要读入磁盘
+    if (!pages_[frame].IsDirty()) {
+      continue;
+    }
+    disk_manager_->WritePage(page_id, pages_[frame].data_);
+    pages_[frame].is_dirty_ = false;
   }
-  disk_manager_->WritePage(page_id, pages_[frame].data_);
-  pages_[frame].is_dirty_ = false;
-  }
- latch_.unlock();
+  latch_.unlock();
 }
 
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
@@ -95,8 +87,6 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   // 4.   Set the page ID output parameter. Return a pointer to P.
   latch_.lock();
   Page *res = nullptr;
-
-  *page_id = AllocatePage();
   frame_id_t frame;
   bool get = false;
   if (!free_list_.empty()) {
@@ -113,6 +103,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     pages_[frame].is_dirty_ = false;
   }
   if (get) {
+    *page_id = AllocatePage();
     pages_[frame].page_id_ = *page_id;
     pages_[frame].pin_count_ = 1;
     page_table_[*page_id] = frame;
@@ -130,7 +121,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 2.     If R is dirty, write it back to the disk.
   // 3.     Delete R from the page table and insert P.
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
-   Page *res = nullptr;
+  Page *res = nullptr;
   latch_.lock();
   bool fetched = false;
   frame_id_t frame;
@@ -173,7 +164,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   // 1.   If P does not exist, return true.
   // 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.
   // 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.
-   latch_.lock();
+  latch_.lock();
   bool deleted = false;
   DeallocatePage(page_id);
   if (page_table_.count(page_id) != 0U) {
@@ -187,7 +178,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
       pages_[frame].page_id_ = INVALID_PAGE_ID;
       pages_[frame].ResetMemory();
       pages_[frame].is_dirty_ = false;
-      //replacer和free_list之间只能选一个呆着,pincount为0且在pagetable中,说明replacer中已经有frame
+      // replacer和free_list之间只能选一个呆着,pincount为0且在pagetable中,说明replacer中已经有frame
       replacer_->Pin(frame);
       free_list_.push_front(frame);
       deleted = true;
@@ -199,7 +190,7 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
   return deleted;
 }
 
-bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) { 
+bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   latch_.lock();
   bool usedpin = false;
   if (page_table_.count(page_id) != 0U) {
