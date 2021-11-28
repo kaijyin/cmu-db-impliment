@@ -20,7 +20,7 @@
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
-
+enum class LockType { READ, INSERT, DELETE, NOLOCK };
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
 /**
@@ -80,6 +80,14 @@ class BPlusTree {
   Page *FindLeafPage(const KeyType &key, bool leftMost = false);
 
  private:
+ Page *FetchPage(page_id_t page_id, LockType lock_type = LockType::NOLOCK);
+  Page *NewPage(page_id_t *page_id);
+  int LuckyInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
+  bool SadInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
+  int LuckyRemove(const KeyType &key, Transaction *transaction = nullptr);
+  void SadRemove(const KeyType &key, Transaction *transaction = nullptr);
+  void PopLockedPage(LockType lock_type, Transaction *transcation);
+  void UnpinPage(Page *page, bool dirty = false, LockType lock_type = LockType::NOLOCK);
   void StartNewTree(const KeyType &key, const ValueType &value);
 
   bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
@@ -110,6 +118,7 @@ class BPlusTree {
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
 
   // member variable
+  std::mutex mu_;
   std::string index_name_;
   page_id_t root_page_id_;
   BufferPoolManager *buffer_pool_manager_;
