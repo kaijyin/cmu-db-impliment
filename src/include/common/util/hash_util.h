@@ -26,7 +26,7 @@ using hash_t = std::size_t;
 
 class HashUtil {
  private:
-  static const hash_t prime_factor = 10000019;
+  static const hash_t PRIME_FACTOR = 10000019;
 
  public:
   static inline hash_t HashBytes(const char *bytes, size_t length) {
@@ -39,13 +39,13 @@ class HashUtil {
   }
 
   static inline hash_t CombineHashes(hash_t l, hash_t r) {
-    hash_t both[2];
+    hash_t both[2] = {};
     both[0] = l;
     both[1] = r;
     return HashBytes(reinterpret_cast<char *>(both), sizeof(hash_t) * 2);
   }
 
-  static inline hash_t SumHashes(hash_t l, hash_t r) { return (l % prime_factor + r % prime_factor) % prime_factor; }
+  static inline hash_t SumHashes(hash_t l, hash_t r) { return (l % PRIME_FACTOR + r % PRIME_FACTOR) % PRIME_FACTOR; }
 
   template <typename T>
   static inline hash_t Hash(const T *ptr) {

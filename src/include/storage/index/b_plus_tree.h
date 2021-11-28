@@ -20,7 +20,7 @@
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
-enum class LockType { READ, INSERT, DELETE, NOLOCK };
+
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
 /**
@@ -55,9 +55,9 @@ class BPlusTree {
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
 
   // index iterator
-  INDEXITERATOR_TYPE begin();
+  INDEXITERATOR_TYPE Begin();
   INDEXITERATOR_TYPE Begin(const KeyType &key);
-  INDEXITERATOR_TYPE end();
+  INDEXITERATOR_TYPE End();
 
   void Print(BufferPoolManager *bpm) {
     ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(root_page_id_)->GetData()), bpm);
@@ -77,40 +77,32 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  Page *FindLeafPage(const KeyType &key, bool leftMost = false, LockType lock_type = LockType::READ,
-                     Transaction *transcation = nullptr);
+  Page *FindLeafPage(const KeyType &key, bool leftMost = false);
 
  private:
-  Page *FetchPage(page_id_t page_id, LockType lock_type = LockType::NOLOCK);
-  Page *NewPage(page_id_t *page_id);
-  int LuckyInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
-  bool SadInsert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
-  int LuckyRemove(const KeyType &key, Transaction *transaction = nullptr);
-  void SadRemove(const KeyType &key, Transaction *transaction = nullptr);
-  void PopLockedPage(LockType lock_type, Transaction *transcation);
-  void UnpinPage(Page *page, bool dirty = false, LockType lock_type = LockType::NOLOCK);
   void StartNewTree(const KeyType &key, const ValueType &value);
+
+  bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
   void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
                         Transaction *transaction = nullptr);
 
   template <typename N>
   N *Split(N *node);
-  template <typename N>
-  bool IsSafe(N *node, LockType lock_type);
 
   template <typename N>
   bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
-  void Coalesce(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index,
-                Transaction *transaction = nullptr);
+  bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
+                int index, Transaction *transaction = nullptr);
 
   template <typename N>
-  void Redistribute(N *neighbor_node, N *node, bool move_front,
-                    BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index);
+  void Redistribute(N *neighbor_node, N *node, int index);
 
-  void UpdateRootPageId(bool insert_record = false);
+  bool AdjustRoot(BPlusTreePage *node);
+
+  void UpdateRootPageId(int insert_record = 0);
 
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
@@ -118,7 +110,6 @@ class BPlusTree {
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
 
   // member variable
-  std::mutex mu_;
   std::string index_name_;
   page_id_t root_page_id_;
   BufferPoolManager *buffer_pool_manager_;

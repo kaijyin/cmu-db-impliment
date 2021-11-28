@@ -27,7 +27,7 @@ namespace bustub {
  */
 class Page {
   // There is book-keeping information inside the page that should only be relevant to the buffer pool manager.
-  friend class BufferPoolManager;
+  friend class BufferPoolManagerInstance;
 
  public:
   /** Constructor. Zeros out the page data. */
@@ -49,28 +49,16 @@ class Page {
   inline bool IsDirty() { return is_dirty_; }
 
   /** Acquire the page write latch. */
-  inline void WLatch() {
-    rwlatch_.WLock();
-    // std::cout<<page_id_<<" WLatch\n";
-  }
+  inline void WLatch() { rwlatch_.WLock(); }
 
   /** Release the page write latch. */
-  inline void WUnlatch() {
-    rwlatch_.WUnlock();
-    // std::cout<<page_id_<<" WULatch\n";
-  }
+  inline void WUnlatch() { rwlatch_.WUnlock(); }
 
   /** Acquire the page read latch. */
-  inline void RLatch() {
-    rwlatch_.RLock();
-    // std::cout<<page_id_<<" RLatch\n";
-  }
+  inline void RLatch() { rwlatch_.RLock(); }
 
   /** Release the page read latch. */
-  inline void RUnlatch() {
-    rwlatch_.RUnlock();
-    // std::cout<<page_id_<<" RULatch\n";
-  }
+  inline void RUnlatch() { rwlatch_.RUnlock(); }
 
   /** @return the page LSN. */
   inline lsn_t GetLSN() { return *reinterpret_cast<lsn_t *>(GetData() + OFFSET_LSN); }
