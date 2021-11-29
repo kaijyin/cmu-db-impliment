@@ -588,13 +588,13 @@ TEST(BPlusTreeConcurrentTest, MixTest1) {
  * Check all the keys get are the same set of keys as previously
  * inserted.
  */
-// TEST(BPlusTreeConcurrentTest, MixTest2) {
-//   TEST_TIMEOUT_BEGIN
-//   MixTest2Call();
-//   remove("test.db");
-//   remove("test.log");
-//   TEST_TIMEOUT_FAIL_END(1000 * 600)
-// }
+TEST(BPlusTreeConcurrentTest, MixTest2) {
+  TEST_TIMEOUT_BEGIN
+  MixTest2Call();
+  remove("test.db");
+  remove("test.log");
+  TEST_TIMEOUT_FAIL_END(1000 * 600)
+}
 
 /*
  * Score: 5
@@ -603,12 +603,12 @@ TEST(BPlusTreeConcurrentTest, MixTest1) {
  * insert different set of keys. Check if all old keys are
  * deleted and new keys are added correctly.
 //  */
-// TEST(BPlusTreeConcurrentTest, MixTest3) {
-//   TEST_TIMEOUT_BEGIN
-//   MixTest3Call();
-//   remove("test.db");
-//   remove("test.log");
-//   TEST_TIMEOUT_FAIL_END(1000 * 600)
-// }
+TEST(BPlusTreeConcurrentTest, MixTest3) {
+  TEST_TIMEOUT_BEGIN
+  MixTest3Call();
+  remove("test.db");
+  remove("test.log");
+  TEST_TIMEOUT_FAIL_END(1000 * 600)
+}
 
 }  // namespace bustub
