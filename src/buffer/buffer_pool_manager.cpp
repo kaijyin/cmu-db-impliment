@@ -109,10 +109,10 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   }
   frame_id_t frame = page_table_[page_id];
   //不是脏文件是否可以不需要读入磁盘
-  if (!pages_[frame].IsDirty()) {
-    latch_.unlock();
-    return true;
-  }
+  // if (!pages_[frame].IsDirty()) {
+  //   latch_.unlock();
+  //   return true;
+  // }
   disk_manager_->WritePage(page_id, pages_[frame].data_);
   pages_[frame].is_dirty_ = false;
   latch_.unlock();
@@ -127,7 +127,6 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   // 4.   Set the page ID output parameter. Return a pointer to P.
   latch_.lock();
   Page *res = nullptr;
-  *page_id = disk_manager_->AllocatePage();
   frame_id_t frame;
   bool get = false;
   if (!free_list_.empty()) {
@@ -144,6 +143,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
     pages_[frame].is_dirty_ = false;
   }
   if (get) {
+    *page_id = disk_manager_->AllocatePage();
     pages_[frame].page_id_ = *page_id;
     pages_[frame].pin_count_ = 1;
     page_table_[*page_id] = frame;
@@ -174,6 +174,7 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
       pages_[frame].ResetMemory();
       pages_[frame].is_dirty_ = false;
       free_list_.push_front(frame);
+      replacer_->Pin(frame);
       deleted = true;
     }
   } else {
@@ -185,9 +186,14 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
 
 void BufferPoolManager::FlushAllPagesImpl() {
   // You can do it!
+  latch_.lock();
   for (auto &x : page_table_) {
-    FlushPageImpl(x.first);
+    page_id_t page_id = x.first;
+    frame_id_t frame = x.second;
+    disk_manager_->WritePage(page_id, pages_[frame].data_);
+    pages_[frame].is_dirty_ = false;
   }
+  latch_.unlock();
 }
 
 }  // namespace bustub
