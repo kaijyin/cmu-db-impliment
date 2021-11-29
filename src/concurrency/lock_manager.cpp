@@ -210,7 +210,7 @@ void LockManager::RunCycleDetection() {
       res = HasCycle(&min_cycle_id);
       mu_.unlock();
       if (res) {
-        //找到死锁环中最新的事务,释放其拥有的锁
+        // 找到死锁环中最新的事务,释放其拥有的锁
         Transaction *txn = txn_map_[min_cycle_id];
         // in dead lock,dont worry about the currency
         txn->SetState(TransactionState::ABORTED);

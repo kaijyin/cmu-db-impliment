@@ -108,7 +108,7 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
     return false;
   }
   frame_id_t frame = page_table_[page_id];
-  //不是脏文件是否可以不需要读入磁盘
+  // 不是脏文件是否可以不需要读入磁盘
   // if (!pages_[frame].IsDirty()) {
   //   latch_.unlock();
   //   return true;
