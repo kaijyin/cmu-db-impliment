@@ -23,7 +23,7 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(HashTablePageTest, DISABLED_DirectoryPageSampleTest) {
+TEST(HashTablePageTest, DirectoryPageSampleTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(5, disk_manager);
 
@@ -57,7 +57,7 @@ TEST(HashTablePageTest, DISABLED_DirectoryPageSampleTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(HashTablePageTest, DISABLED_BucketPageSampleTest) {
+TEST(HashTablePageTest, BucketPageSampleTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(5, disk_manager);
 
@@ -80,7 +80,7 @@ TEST(HashTablePageTest, DISABLED_BucketPageSampleTest) {
 
   // remove a few pairs
   for (unsigned i = 0; i < 10; i++) {
-    if (i % 2 == 1) {
+    if (i % 2 == 0) {
       assert(bucket_page->Remove(i, i, IntComparator()));
     }
   }
@@ -89,7 +89,7 @@ TEST(HashTablePageTest, DISABLED_BucketPageSampleTest) {
   for (unsigned i = 0; i < 15; i++) {
     if (i < 10) {
       EXPECT_TRUE(bucket_page->IsOccupied(i));
-      if (i % 2 == 1) {
+      if (i % 2 == 0) {
         EXPECT_FALSE(bucket_page->IsReadable(i));
       } else {
         EXPECT_TRUE(bucket_page->IsReadable(i));
@@ -101,7 +101,7 @@ TEST(HashTablePageTest, DISABLED_BucketPageSampleTest) {
 
   // try to remove the already-removed pairs
   for (unsigned i = 0; i < 10; i++) {
-    if (i % 2 == 1) {
+    if (i % 2 == 0) {
       assert(!bucket_page->Remove(i, i, IntComparator()));
     }
   }

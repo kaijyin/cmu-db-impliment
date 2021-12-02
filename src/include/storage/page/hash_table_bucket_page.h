@@ -85,7 +85,6 @@ class HashTableBucketPage {
    */
   void RemoveAt(uint32_t bucket_idx);
 
-
   /**
    * Returns whether or not an index is occupied (key/value pair or tombstone)
    *
@@ -120,11 +119,12 @@ class HashTableBucketPage {
    * @return whether the bucket is empty
    */
   bool IsEmpty();
-  
+
   /**
    * Prints the bucket's occupancy information
    */
   void PrintBucket();
+
  private:
   //  For more on BUCKET_ARRAY_SIZE see storage/page/hash_table_page_defs.h
   uint8_t occupied_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];

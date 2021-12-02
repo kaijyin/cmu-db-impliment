@@ -594,7 +594,7 @@ Page *BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool leftMost, LockType l
   mu_.unlock();
   Page *page = FetchPage(pre_root_id, lock_type);
   InternalPage *inter_node = reinterpret_cast<InternalPage *>(page->GetData());
-  if (!inter_node->IsRootPage()||inter_node->GetSize()==0) {
+  if (!inter_node->IsRootPage() || inter_node->GetSize() == 0) {
     UnpinPage(page, false, lock_type);
     return FindLeafPage(key, leftMost, lock_type, transcation);
   }

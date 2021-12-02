@@ -21,8 +21,8 @@ namespace bustub {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) {
   uint32_t idx = 0;
-  uint32_t max_size=BUCKET_ARRAY_SIZE;
-  while (idx<max_size&&IsOccupied(idx)) {
+  uint32_t max_size = BUCKET_ARRAY_SIZE;
+  while (idx < max_size && IsOccupied(idx)) {
     if (IsReadable(idx)) {
       if (cmp.operator()(key, KeyAt(idx)) == 0) {
         result->push_back(ValueAt(idx));
@@ -30,10 +30,7 @@ bool HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
     }
     idx++;
   }
-  if (!result->empty()) {
-    return true;
-  }
-  return false;
+  return !result->empty();
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -52,7 +49,7 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
     }
     idx++;
   }
-  //除非key,val重复,不然一定能插入成功,因为到达maxsize就会分裂
+  // 除非key,val重复,不然一定能插入成功,因为到达maxsize就会分裂
   if (hastombstone) {
     ChangeReadable(tombstone_idx);
     array_[tombstone_idx] = MappingType(key, value);
@@ -67,8 +64,8 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) {
   uint32_t idx = 0;
-  uint32_t max_size=BUCKET_ARRAY_SIZE;
-  while (idx<max_size&&IsOccupied(idx)) {
+  uint32_t max_size = BUCKET_ARRAY_SIZE;
+  while (idx < max_size && IsOccupied(idx)) {
     if (IsReadable(idx)) {
       if (cmp.operator()(key, KeyAt(idx)) == 0 && value == ValueAt(idx)) {
         RemoveAt(idx);
@@ -94,21 +91,20 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::RemoveAt(uint32_t bucket_idx) {
   // 应该不会删除不存在的索引
   ChangeReadable(bucket_idx);
-  if((bucket_idx==(BUCKET_ARRAY_SIZE-1))||(!IsReadable(bucket_idx+1)&&!IsOccupied(bucket_idx+1))){
-     while(bucket_idx>=0){
-       if(!IsReadable(bucket_idx)&&IsOccupied(bucket_idx)){
+  if ((bucket_idx == (BUCKET_ARRAY_SIZE - 1)) || (!IsReadable(bucket_idx + 1) && !IsOccupied(bucket_idx + 1))) {
+    while (bucket_idx >= 0) {
+      if (!IsReadable(bucket_idx) && IsOccupied(bucket_idx)) {
         ChangeOccupied(bucket_idx);
-       }else{
-         break;
-       }
-       if(bucket_idx==0){
-          break;
-        }
-        bucket_idx--;
-     }
+      } else {
+        break;
+      }
+      if (bucket_idx == 0) {
+        break;
+      }
+      bucket_idx--;
+    }
   }
 }
-
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsOccupied(uint32_t bucket_idx) const {
@@ -132,16 +128,16 @@ void HASH_TABLE_BUCKET_TYPE::ChangeReadable(uint32_t bucket_idx) {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
-  size_t size = (BUCKET_ARRAY_SIZE - 1) / 8+1;
+  size_t size = (BUCKET_ARRAY_SIZE - 1) / 8 + 1;
   uint32_t sum = 0;
-  uint8_t mask=0xffui8;
+  uint8_t mask = 255;
   for (size_t now_idx = 0; now_idx < size; now_idx++) {
     int now_x = static_cast<int>(readable_[now_idx]);
     while (now_x != 0) {
       now_x -= (now_x & (-now_x));
       sum++;
     }
-    if (occupied_[now_idx] ^ mask) != 0) {
+    if ((occupied_[now_idx] ^ mask) != 0) {
       return sum;
     }
   }
@@ -149,19 +145,19 @@ uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
 }
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsFull() {
-   size_t size=(BUCKET_ARRAY_SIZE - 1) / 8;
-   //倒着往前判断
-   uint8_t mask=(1<<(BUCKET_ARRAY_SIZE-8*size)-1);
-   if((readable_[size]^mask)!=0){
-       return false;
-   }
-   mask=0xffui8
-   for(size_t i=size-1;i>=0;i--){
-     if((readable_[i]^mask)!=0){
-       return false;
-     }
-   }
-   return true;
+  size_t size = (BUCKET_ARRAY_SIZE - 1) / 8;
+  // 倒着往前判断
+  uint8_t mask = (1 << (BUCKET_ARRAY_SIZE - 8 * size)) - 1;
+  if ((readable_[size] ^ mask) != 0) {
+    return false;
+  }
+  mask = 255;
+  for (size_t i = size - 1; i >= 0; i--) {
+    if ((readable_[i] ^ mask) != 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>

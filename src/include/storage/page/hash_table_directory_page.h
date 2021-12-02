@@ -73,7 +73,6 @@ class HashTableDirectoryPage {
    */
   void SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id);
 
-
   /**
    * GetGlobalDepthMask - returns a mask of global_depth 1's and the rest 0's.
    *
@@ -153,7 +152,6 @@ class HashTableDirectoryPage {
    * @param bucket_idx bucket index to decrement
    */
   void DecrLocalDepth(uint32_t bucket_idx);
-
 
   uint32_t GetLowMatch(uint32_t bucket_idx);
   uint32_t GetLocalHighBit(uint32_t bucket_idx);

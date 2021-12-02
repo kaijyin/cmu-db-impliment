@@ -24,7 +24,7 @@
 
 namespace bustub {
 
-enum LockMode { NOLOCK,READ, WRITE };
+enum LockMode { NOLOCK, READ, WRITE };
 #define HASH_TABLE_TYPE ExtendibleHashTable<KeyType, ValueType, KeyComparator>
 
 /**
@@ -33,8 +33,7 @@ enum LockMode { NOLOCK,READ, WRITE };
  * table grows/shrinks dynamically as buckets become full/empty.
  */
 template <typename KeyType, typename ValueType, typename KeyComparator>
-class ExtendibleHashTable : public HashTable<KeyType, ValueType, KeyComparator>{
-
+class ExtendibleHashTable {
  public:
   /**
    * Creates a new ExtendibleHashTable.

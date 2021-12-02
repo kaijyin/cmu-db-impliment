@@ -24,7 +24,7 @@ namespace bustub {
 // NOLINTNEXTLINE
 
 // NOLINTNEXTLINE
-TEST(HashTableTest, DISABLED_SampleTest) {
+TEST(HashTableTest, SampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
@@ -37,7 +37,7 @@ TEST(HashTableTest, DISABLED_SampleTest) {
     EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
     EXPECT_EQ(i, res[0]);
   }
-
+  LOG_DEBUG("here");
   ht.VerifyIntegrity();
 
   // check if the inserted values are all there
@@ -49,7 +49,7 @@ TEST(HashTableTest, DISABLED_SampleTest) {
   }
 
   ht.VerifyIntegrity();
-
+  LOG_DEBUG("here2");
   // insert one more value for each key
   for (int i = 0; i < 5; i++) {
     if (i == 0) {
@@ -78,6 +78,7 @@ TEST(HashTableTest, DISABLED_SampleTest) {
 
   ht.VerifyIntegrity();
 
+  LOG_DEBUG("here3");
   // look for a key that does not exist
   std::vector<int> res;
   ht.GetValue(nullptr, 20, &res);
