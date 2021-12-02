@@ -85,10 +85,6 @@ class HashTableBucketPage {
    */
   void RemoveAt(uint32_t bucket_idx);
 
-  /**
-   * Remove the KV pair at bucket_idx
-   */
-  void InsertAt(uint32_t bucket_idx, KeyType key, ValueType value);
 
   /**
    * Returns whether or not an index is occupied (key/value pair or tombstone)
@@ -98,13 +94,7 @@ class HashTableBucketPage {
    */
   bool IsOccupied(uint32_t bucket_idx) const;
 
-  /**
-   * SetOccupied - Updates the bitmap to indicate that the entry at
-   * bucket_idx is occupied.
-   *
-   * @param bucket_idx the index to update
-   */
-  void SetOccupied(uint32_t bucket_idx);
+  void ChangeOccupied(uint32_t bucket_idx);
 
   /**
    * Returns whether or not an index is readable (valid key/value pair)
@@ -114,13 +104,7 @@ class HashTableBucketPage {
    */
   bool IsReadable(uint32_t bucket_idx) const;
 
-  /**
-   * SetReadable - Updates the bitmap to indicate that the entry at
-   * bucket_idx is readable.
-   *
-   * @param bucket_idx the index to update
-   */
-  void SetReadable(uint32_t bucket_idx);
+  void ChangeReadable(uint32_t bucket_idx);
 
   /**
    * @return the number of readable elements, i.e. current size
@@ -136,17 +120,16 @@ class HashTableBucketPage {
    * @return whether the bucket is empty
    */
   bool IsEmpty();
-
+  
   /**
    * Prints the bucket's occupancy information
    */
   void PrintBucket();
-
  private:
   //  For more on BUCKET_ARRAY_SIZE see storage/page/hash_table_page_defs.h
-  char occupied_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
+  uint8_t occupied_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
   // 0 if tombstone/brand new (never occupied), 1 otherwise.
-  char readable_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
+  uint8_t readable_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
   MappingType array_[0];
 };
 

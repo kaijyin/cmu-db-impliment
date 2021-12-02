@@ -73,13 +73,6 @@ class HashTableDirectoryPage {
    */
   void SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id);
 
-  /**
-   * Gets the split image of an index
-   *
-   * @param bucket_idx the directory index for which to find the split image
-   * @return the directory index of the split image
-   **/
-  uint32_t GetSplitImageIndex(uint32_t bucket_idx);
 
   /**
    * GetGlobalDepthMask - returns a mask of global_depth 1's and the rest 0's.
@@ -161,16 +154,10 @@ class HashTableDirectoryPage {
    */
   void DecrLocalDepth(uint32_t bucket_idx);
 
-  /**
-   * Gets the high bit corresponding to the bucket's local depth.
-   * This is not the same as the bucket index itself.  This method
-   * is helpful for finding the pair, or "split image", of a bucket.
-   *
-   * @param bucket_idx bucket index to lookup
-   * @return the high bit corresponding to the bucket's local depth
-   */
-  uint32_t GetLocalHighBit(uint32_t bucket_idx);
 
+  uint32_t GetLowMatch(uint32_t bucket_idx);
+  uint32_t GetLocalHighBit(uint32_t bucket_idx);
+  uint32_t GetSpliteImageIdx(uint32_t bucket_idx);
   /**
    * VerifyIntegrity
    *
@@ -191,7 +178,6 @@ class HashTableDirectoryPage {
   lsn_t lsn_;
   uint32_t global_depth_{0};
   uint8_t local_depths_[DIRECTORY_ARRAY_SIZE];
-  uint8_t local_value_[DIRECTORY_ARRAY_SIZE];
   page_id_t bucket_page_ids_[DIRECTORY_ARRAY_SIZE];
 };
 

@@ -24,6 +24,7 @@
 
 namespace bustub {
 
+enum LockMode { NOLOCK,READ, WRITE };
 #define HASH_TABLE_TYPE ExtendibleHashTable<KeyType, ValueType, KeyComparator>
 
 /**
@@ -32,8 +33,7 @@ namespace bustub {
  * table grows/shrinks dynamically as buckets become full/empty.
  */
 template <typename KeyType, typename ValueType, typename KeyComparator>
-class ExtendibleHashTable {
-  enum LockMode { READ, WRITE };
+class ExtendibleHashTable : public HashTable<KeyType, ValueType, KeyComparator>{
 
  public:
   /**
@@ -128,9 +128,10 @@ class ExtendibleHashTable {
    *
    * @return a pointer to the  page
    */
-  Page *FetchPage(page_id_t page_id, LockMode lock_mode = LockMode::READ);
+  Page *FetchPage(page_id_t page_id, LockMode lock_mode = LockMode::NOLOCK);
+  Page *NewPage(page_id_t *page_id);
 
-  bool UnpinPage(Page *page, LockMode lock_mode = LockMode::READ, bool dirty = false);
+  bool UnpinPage(Page *page, LockMode lock_mode = LockMode::NOLOCK, bool dirty = false);
 
   /**
    * Performs insertion with an optional bucket splitting.
