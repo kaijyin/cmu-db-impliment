@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#pragma once
+// #pragma once
 
 #include <dirent.h>
 #include <cstring>
@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/macros.h"
@@ -27,8 +28,8 @@ namespace bustub {
 void printTestFile(std::string fileName) {
   char buf[128];
   memset(buf, 0, sizeof(buf));
-  // snprintf(buf, sizeof(buf), "/autograder/bustub/test/container");
-  snprintf(buf, sizeof(buf), fileName.c_str());
+  snprintf(buf, sizeof(buf), "/autograder/bustub/test/container");
+  // snprintf(buf, sizeof(buf), fileName.c_str());
   DIR *dir;
   struct dirent *ent;
   if ((dir = opendir(buf)) != nullptr) {
