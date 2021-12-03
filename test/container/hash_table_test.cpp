@@ -37,7 +37,7 @@ TEST(HashTableTest, SampleTest) {
     EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
     EXPECT_EQ(i, res[0]);
   }
-  LOG_DEBUG("here");
+
   ht.VerifyIntegrity();
 
   // check if the inserted values are all there
@@ -49,7 +49,7 @@ TEST(HashTableTest, SampleTest) {
   }
 
   ht.VerifyIntegrity();
-  LOG_DEBUG("here2");
+
   // insert one more value for each key
   for (int i = 0; i < 5; i++) {
     if (i == 0) {
@@ -78,7 +78,6 @@ TEST(HashTableTest, SampleTest) {
 
   ht.VerifyIntegrity();
 
-  LOG_DEBUG("here3");
   // look for a key that does not exist
   std::vector<int> res;
   ht.GetValue(nullptr, 20, &res);

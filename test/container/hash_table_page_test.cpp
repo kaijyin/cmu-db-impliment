@@ -80,7 +80,7 @@ TEST(HashTablePageTest, BucketPageSampleTest) {
 
   // remove a few pairs
   for (unsigned i = 0; i < 10; i++) {
-    if (i % 2 == 0) {
+    if (i % 2 == 1) {
       assert(bucket_page->Remove(i, i, IntComparator()));
     }
   }
@@ -89,7 +89,7 @@ TEST(HashTablePageTest, BucketPageSampleTest) {
   for (unsigned i = 0; i < 15; i++) {
     if (i < 10) {
       EXPECT_TRUE(bucket_page->IsOccupied(i));
-      if (i % 2 == 0) {
+      if (i % 2 == 1) {
         EXPECT_FALSE(bucket_page->IsReadable(i));
       } else {
         EXPECT_TRUE(bucket_page->IsReadable(i));
@@ -101,7 +101,7 @@ TEST(HashTablePageTest, BucketPageSampleTest) {
 
   // try to remove the already-removed pairs
   for (unsigned i = 0; i < 10; i++) {
-    if (i % 2 == 0) {
+    if (i % 2 == 1) {
       assert(!bucket_page->Remove(i, i, IntComparator()));
     }
   }
