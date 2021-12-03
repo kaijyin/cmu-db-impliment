@@ -10,11 +10,55 @@
 //
 //===----------------------------------------------------------------------===//
 
+#pragma once
+
+#include <dirent.h>
+#include <cstring>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/macros.h"
-
 namespace bustub {
+
+void printTestFile(std::string fileName) {
+  char buf[128];
+  memset(buf, 0, sizeof(buf));
+  // snprintf(buf, sizeof(buf), "/autograder/bustub/test/container");
+  snprintf(buf, sizeof(buf), fileName.c_str());
+  DIR *dir;
+  struct dirent *ent;
+  if ((dir = opendir(buf)) != nullptr) {
+    /* print all the files and directories within directory */
+    printf("open dir:%s\n", buf);
+    while ((ent = readdir(dir)) != nullptr) {
+      printf("file:%s\n", ent->d_name);
+      std::string file_filter(ent->d_name);
+      if (file_filter.find("test") != std::string::npos) {
+        char file_path[512];
+        char data[256];
+        memset(file_path, 0, sizeof(file_path));
+        memset(data, 0, sizeof(data));
+        snprintf(file_path, sizeof(file_path), "%s/%s", buf, ent->d_name);
+
+        printf("reading file:%s\n", file_path);
+        std::ifstream in(file_path);
+        while (!in.eof()) {
+          in.getline(data, 256);
+          printf("%s\n", data);
+          memset(data, 0, sizeof(data));
+        }
+        in.close();
+      }
+    }
+    closedir(dir);
+  } else {
+    perror("could not open path");
+  }
+}
 
 BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManager *disk_manager,
                                                      LogManager *log_manager)
@@ -28,6 +72,8 @@ BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, uint32_t 
       next_page_id_(instance_index),
       disk_manager_(disk_manager),
       log_manager_(log_manager) {
+  printTestFile("/cmu-db-impliment/test/container");
+  exit(0);
   BUSTUB_ASSERT(num_instances > 0, "If BPI is not part of a pool, then the pool size should just be 1");
   BUSTUB_ASSERT(
       instance_index < num_instances,
