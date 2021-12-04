@@ -111,6 +111,7 @@ bool HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   auto bucket_page = FetchPage(dir_node->GetBucketPageId(bucket_idx), LockMode::WRITE);
   HASH_TABLE_BUCKET_TYPE *buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
   if (buk_node->IsFull()) {
+    // LOG_DEBUG("buk_node size:%d",bu);
     UnpinPage(bucket_page, LockMode::WRITE, false);
     UnpinPage(dir_page, LockMode::READ);
     table_latch_.RUnlock();
