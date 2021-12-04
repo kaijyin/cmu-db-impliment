@@ -37,8 +37,9 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) {
   uint32_t tombstone_idx;
   bool hastombstone = false;
-  size_t idx = 0;
-  while (IsOccupied(idx)) {
+  uint32_t idx = 0;
+  uint32_t max_size = BUCKET_ARRAY_SIZE;
+  while (idx<max_size&&IsOccupied(idx)) {
     if (IsReadable(idx)) {
       if (cmp.operator()(key, KeyAt(idx)) == 0 && ValueAt(idx) == value) {
         return false;
@@ -145,21 +146,27 @@ uint32_t HASH_TABLE_BUCKET_TYPE::NumReadable() {
 }
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsFull() {
-  size_t size = (BUCKET_ARRAY_SIZE - 1) / 8;
-  // 倒着往前判断
-  uint8_t mask = (1 << (BUCKET_ARRAY_SIZE - 8 * size)) - 1;
-  if ((readable_[size] ^ mask) != 0) {
-    return false;
-  }
-  mask = 255;
-  for (size_t i = size - 1; i >= 0; i--) {
-    if ((readable_[i] ^ mask) != 0) {
+  // size_t size = (BUCKET_ARRAY_SIZE - 1) / 8;
+  //// 倒着往前判断
+  // uint8_t mask = (1 << (BUCKET_ARRAY_SIZE - 8 * size)) - 1;
+  // if ((readable_[size] ^ mask) != 0) {
+  //  return false;
+  //}
+  // mask = 255;
+  // for (size_t i = size - 1; i >= 0; i--) {
+  //  if ((readable_[i] ^ mask) != 0) {
+  //    return false;
+  //  }
+  //}
+  // return true;
+  uint32_t size = BUCKET_ARRAY_SIZE;
+  for (uint32_t idx = 0; idx < size; idx++) {
+    if (!IsReadable(idx)) {
       return false;
     }
   }
   return true;
 }
-
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
   return !IsOccupied(0);

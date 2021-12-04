@@ -134,12 +134,14 @@ bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
   HASH_TABLE_BUCKET_TYPE *buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
   bool res;
   while (buk_node->IsFull()) {
+    // buk_node->PrintBucket();
     page_id_t sib_page_id;
     auto sib_page = NewPage(&sib_page_id);
     HASH_TABLE_BUCKET_TYPE *sib_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(sib_page->GetData());
     uint32_t low_idx = dir_node->GetLowMatch(bucket_idx);
     uint32_t add_bit = dir_node->GetLocalDepthMask(bucket_idx) + 1;
     if (dir_node->GetGlobalDepth() == dir_node->GetLocalDepth(bucket_idx)) {
+      // dir_node->PrintDirectory();
       dir_node->IncrGlobalDepth();
     }
     uint32_t global_size = dir_node->Size();
@@ -152,22 +154,28 @@ bool HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
       low_idx += add_bit;
       f = !f;
     }
+    // exit(0);
     uint32_t array_size = BUCKET_ARRAY_SIZE;
     for (uint32_t i = 0; i < array_size; i++) {
       KeyType cur_key = buk_node->KeyAt(i);
-      uint32_t hash_idx = Hash(cur_key);
+      uint32_t hash_idx = Hash(cur_key)&dir_node->GetGlobalDepthMask();
       // 高位为1的替换到分到另一页
-      if ((dir_node->GetLocalHighBit(hash_idx) ^ hash_idx) == 0) {
+      if (dir_node->GetLocalHighBit(hash_idx) != 0) {
         buk_node->RemoveAt(i);
         sib_node->Insert(cur_key, buk_node->ValueAt(i), comparator_);
       }
     }
+    // buk_node->PrintBucket();
+    // sib_node->PrintBucket();
     UnpinPage(bucket_page, LockMode::WRITE, true);
     UnpinPage(sib_page, LockMode::WRITE, true);
     bucket_idx = Hash(key) & dir_node->GetGlobalDepthMask();
+        // buk_node->PrintBucket();
     bucket_page = FetchPage(dir_node->GetBucketPageId(bucket_idx), LockMode::WRITE);
     buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
+        // buk_node->PrintBucket();
   }
+  // buk_node->PrintBucket();
   res = buk_node->Insert(key, value, comparator_);
   UnpinPage(bucket_page, LockMode::WRITE, true);
   UnpinPage(dir_page, LockMode::WRITE, true);
@@ -205,43 +213,32 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
   table_latch_.WLock();
   auto dir_page = FetchPage(directory_page_id_, LockMode::WRITE);
   auto dir_node = reinterpret_cast<HashTableDirectoryPage *>(dir_page->GetData());
-  auto bucket_idx = Hash(key) & dir_node->GetGlobalDepthMask();
-  auto bucket_page = FetchPage(dir_node->GetBucketPageId(bucket_idx), LockMode::WRITE);
-  HASH_TABLE_BUCKET_TYPE *buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
+  uint32_t bucket_idx = Hash(key) & dir_node->GetGlobalDepthMask();
+  auto bucket_page = FetchPage(dir_node->GetBucketPageId(bucket_idx), LockMode::READ);
+  auto buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
   uint32_t sib_idx = dir_node->GetSpliteImageIdx(bucket_idx);
   while (buk_node->IsEmpty() && (dir_node->GetLocalDepth(bucket_idx) > 0) &&
          (dir_node->GetLocalDepth(sib_idx) == dir_node->GetLocalDepth(bucket_idx))) {
     page_id_t sib_page_id = dir_node->GetBucketPageId(sib_idx);
-    uint32_t low_idx = dir_node->GetLowMatch(bucket_idx);
-    uint32_t add_bit = dir_node->GetLocalDepthMask(bucket_idx) + 1;
-    if (dir_node->GetGlobalDepth() == dir_node->GetLocalDepth(bucket_idx)) {
-      uint32_t mask = dir_node->GetLocalDepthMask(bucket_idx);
-      uint32_t now_size = dir_node->Size();
-      bool the_match_dep = true;
-      for (uint32_t idx = 0; idx < now_size; idx++) {
-        if ((dir_node->GetLocalDepth(idx) == dir_node->GetGlobalDepth()) && ((idx & mask) != low_idx)) {
-          the_match_dep = false;
-          break;
-        }
-      }
-      if (the_match_dep) {
-        dir_node->IncrGlobalDepth();
-      }
-    }
+    uint32_t add_bit = 1<<(dir_node->GetLocalDepth(bucket_idx)-1);
+    uint32_t low_idx = bucket_idx&(add_bit-1);
     uint32_t global_size = dir_node->Size();
     while (low_idx < global_size) {
       dir_node->DecrLocalDepth(low_idx);
-      dir_node->SetBucketPageId(low_idx, sib_page_id);
+      dir_node->SetBucketPageId(low_idx,sib_page_id);
       low_idx += add_bit;
     }
+    if (dir_node->CanShrink()){
+        dir_node->DecrGlobalDepth();
+    }
+    bucket_idx=bucket_idx&dir_node->GetLocalDepthMask(bucket_idx);
     sib_idx = dir_node->GetSpliteImageIdx(bucket_idx);
-    UnpinPage(bucket_page, LockMode::WRITE, true);
-    buffer_pool_manager_->DeletePage(bucket_page->GetPageId());
-    bucket_page = FetchPage(dir_node->GetBucketPageId(bucket_idx), LockMode::WRITE);
+    UnpinPage(bucket_page, LockMode::READ);
+    bucket_page = FetchPage(sib_page_id, LockMode::READ);
     buk_node = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(bucket_page->GetData());
   }
+  UnpinPage(bucket_page, LockMode::READ);
   UnpinPage(dir_page, LockMode::WRITE, true);
-  UnpinPage(bucket_page, LockMode::WRITE, true);
   table_latch_.WUnlock();
 }
 
@@ -267,6 +264,7 @@ void HASH_TABLE_TYPE::VerifyIntegrity() {
   table_latch_.RLock();
   HashTableDirectoryPage *dir_page =
       reinterpret_cast<HashTableDirectoryPage *>(buffer_pool_manager_->FetchPage(directory_page_id_)->GetData());
+  // dir_page->PrintDirectory();
   dir_page->VerifyIntegrity();
   assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr));
   table_latch_.RUnlock();

@@ -150,7 +150,7 @@ void ConcurrentScaleTest() {
   for (size_t i = 0; i < num_threads; i++) {
     threads[i].join();
   }
-
+  LOG_DEBUG("chere1");
   // Check all reserved keys exist
   size = 0;
   std::vector<int> result;
@@ -164,7 +164,7 @@ void ConcurrentScaleTest() {
   }
 
   EXPECT_EQ(size, perserved_keys.size());
-
+  LOG_DEBUG("chere2");
   hash_table.VerifyIntegrity();
 
   // Cleanup
@@ -181,7 +181,7 @@ void ScaleTestCall() {
   auto *bpm = new BufferPoolManagerInstance(4, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("foo_pk", bpm, IntComparator(), HashFunction<int>());
 
-  int num_keys = 500;  // index can fit around 225k int-int pairs
+  int num_keys = 200000;  // index can fit around 225k int-int pairs
 
   // Create header_page
   page_id_t page_id;
@@ -190,13 +190,15 @@ void ScaleTestCall() {
   //  insert all the keys
   for (int i = 0; i < num_keys; i++) {
     ht.Insert(nullptr, i, i);
+    //  LOG_DEBUG("insert%d",i);
     std::vector<int> res;
     EXPECT_TRUE(ht.GetValue(nullptr, i, &res));
     EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
   }
 
   ht.VerifyIntegrity();
-  exit(0);
+  // exit(0);
+  LOG_DEBUG("here1");
   //  remove half the keys
   for (int i = 0; i < num_keys / 2; i++) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i));
@@ -212,7 +214,7 @@ void ScaleTestCall() {
     std::vector<int> res;
     EXPECT_FALSE(ht.GetValue(nullptr, i, &res));
   }
-
+  LOG_DEBUG("here2");
   //  insert to the 2nd half as duplicates
   for (int i = num_keys / 2; i < num_keys; i++) {
     ht.Insert(nullptr, i, i + 1);
@@ -222,7 +224,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-
+LOG_DEBUG("here3");
   //  get all the duplicates
   for (int i = num_keys / 2; i < num_keys; i++) {
     std::vector<int> res;
@@ -231,7 +233,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-
+  LOG_DEBUG("here4");
   //  remove the last duplicates inserted
   for (int i = num_keys / 2; i < num_keys; i++) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i + 1));
@@ -241,7 +243,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-
+ LOG_DEBUG("here5");
   //  query everything
   for (int i = num_keys / 2; i < num_keys; i++) {
     std::vector<int> res;
@@ -250,7 +252,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-
+LOG_DEBUG("herr6");
   //  remove the rest of the remaining keys
   for (int i = num_keys / 2; i < num_keys; i++) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i));
@@ -260,7 +262,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-
+LOG_DEBUG("herr7");
   //  query everything
   for (int i = 0; i < num_keys; i++) {
     std::vector<int> res;
@@ -271,7 +273,7 @@ void ScaleTestCall() {
   //  Verify Merging Worked
   assert(ht.GetGlobalDepth() < 8);
   ht.VerifyIntegrity();
-
+LOG_DEBUG("herr8");
   disk_manager->ShutDown();
   remove("test.db");
   delete disk_manager;
@@ -289,7 +291,7 @@ TEST(HashTableScaleTest, ScaleTest) { ScaleTestCall(); }
  * Description: Same as MixTest2 but with 100k integer keys
  * and only runs 1 iteration.
  */
-TEST(HashTableScaleTest, DISABLED_ConcurrentScaleTest) {
+TEST(HashTableScaleTest, ConcurrentScaleTest) {
   TEST_TIMEOUT_BEGIN
   ConcurrentScaleTest();
   TEST_TIMEOUT_FAIL_END(3 * 1000 * 120)
