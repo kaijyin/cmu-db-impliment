@@ -12,12 +12,10 @@
 
 // #pragma once
 
-
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/macros.h"
 namespace bustub {
-
 
 BufferPoolManagerInstance::BufferPoolManagerInstance(size_t pool_size, DiskManager *disk_manager,
                                                      LogManager *log_manager)

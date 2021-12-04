@@ -224,7 +224,7 @@ void ScaleTestCall() {
   }
 
   ht.VerifyIntegrity();
-LOG_DEBUG("here3");
+  LOG_DEBUG("here3");
   //  get all the duplicates
   for (int i = num_keys / 2; i < num_keys; i++) {
     std::vector<int> res;
@@ -243,7 +243,7 @@ LOG_DEBUG("here3");
   }
 
   ht.VerifyIntegrity();
- LOG_DEBUG("here5");
+  LOG_DEBUG("here5");
   //  query everything
   for (int i = num_keys / 2; i < num_keys; i++) {
     std::vector<int> res;
@@ -252,7 +252,7 @@ LOG_DEBUG("here3");
   }
 
   ht.VerifyIntegrity();
-LOG_DEBUG("herr6");
+  LOG_DEBUG("herr6");
   //  remove the rest of the remaining keys
   for (int i = num_keys / 2; i < num_keys; i++) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i));
@@ -262,7 +262,7 @@ LOG_DEBUG("herr6");
   }
 
   ht.VerifyIntegrity();
-LOG_DEBUG("herr7");
+  LOG_DEBUG("herr7");
   //  query everything
   for (int i = 0; i < num_keys; i++) {
     std::vector<int> res;
@@ -273,7 +273,7 @@ LOG_DEBUG("herr7");
   //  Verify Merging Worked
   assert(ht.GetGlobalDepth() < 8);
   ht.VerifyIntegrity();
-LOG_DEBUG("herr8");
+  LOG_DEBUG("herr8");
   disk_manager->ShutDown();
   remove("test.db");
   delete disk_manager;

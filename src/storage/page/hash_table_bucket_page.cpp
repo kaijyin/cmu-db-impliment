@@ -39,7 +39,7 @@ bool HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
   bool hastombstone = false;
   uint32_t idx = 0;
   uint32_t max_size = BUCKET_ARRAY_SIZE;
-  while (idx<max_size&&IsOccupied(idx)) {
+  while (idx < max_size && IsOccupied(idx)) {
     if (IsReadable(idx)) {
       if (cmp.operator()(key, KeyAt(idx)) == 0 && ValueAt(idx) == value) {
         return false;
@@ -92,19 +92,19 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::RemoveAt(uint32_t bucket_idx) {
   // 应该不会删除不存在的索引
   ChangeReadable(bucket_idx);
-  if ((bucket_idx == (BUCKET_ARRAY_SIZE - 1)) || (!IsReadable(bucket_idx + 1) && !IsOccupied(bucket_idx + 1))) {
-    while (bucket_idx >= 0) {
-      if (!IsReadable(bucket_idx) && IsOccupied(bucket_idx)) {
-        ChangeOccupied(bucket_idx);
-      } else {
-        break;
-      }
-      if (bucket_idx == 0) {
-        break;
-      }
-      bucket_idx--;
-    }
-  }
+  // if ((bucket_idx == (BUCKET_ARRAY_SIZE - 1)) || (!IsReadable(bucket_idx + 1) && !IsOccupied(bucket_idx + 1))) {
+  //   while (bucket_idx >= 0) {
+  //     if (!IsReadable(bucket_idx) && IsOccupied(bucket_idx)) {
+  //       ChangeOccupied(bucket_idx);
+  //     } else {
+  //       break;
+  //     }
+  //     if (bucket_idx == 0) {
+  //       break;
+  //     }
+  //     bucket_idx--;
+  //   }
+  // }
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -169,7 +169,13 @@ bool HASH_TABLE_BUCKET_TYPE::IsFull() {
 }
 template <typename KeyType, typename ValueType, typename KeyComparator>
 bool HASH_TABLE_BUCKET_TYPE::IsEmpty() {
-  return !IsOccupied(0);
+  uint32_t size = BUCKET_ARRAY_SIZE;
+  for (uint32_t idx = 0; idx < size; idx++) {
+    if (IsReadable(idx)) {
+      return false;
+    }
+  }
+  return true;
 }
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::PrintBucket() {
