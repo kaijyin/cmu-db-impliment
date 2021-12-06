@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// #pragma once
 
 #include "buffer/buffer_pool_manager_instance.h"
 

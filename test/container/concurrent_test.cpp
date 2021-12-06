@@ -287,7 +287,7 @@ void MixTest1Call() {
     std::vector<int> for_insert;
     std::vector<int> for_delete;
     size_t sieve = 2;  // divide evenly
-    size_t total_keys = 1000;
+    size_t total_keys = 10000;
     for (size_t i = 1; i <= total_keys; i++) {
       if (i % sieve == 0) {
         for_insert.emplace_back(i);
@@ -350,7 +350,7 @@ void MixTest2Call() {
     // Add perserved_keys
     std::vector<int> perserved_keys;
     std::vector<int> dynamic_keys;
-    size_t total_keys = 300;
+    size_t total_keys = 3000;
     size_t sieve = 5;
     for (size_t i = 1; i <= total_keys; i++) {
       if (i % sieve == 0) {
