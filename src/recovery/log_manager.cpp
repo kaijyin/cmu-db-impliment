@@ -13,6 +13,7 @@
 #include "recovery/log_manager.h"
 
 namespace bustub {
+
 /*
  * set enable_logging = true
  * Start a separate thread to execute flush to disk operation periodically
@@ -22,13 +23,60 @@ namespace bustub {
  *
  * This thread runs forever until system shutdown/StopFlushThread
  */
-void LogManager::RunFlushThread() {}
-
+void LogManager::RunFlushThread() {
+  enable_logging=true;
+  flush_thread_=new std::thread(&RunThread,this);
+}
+void LogManager::RunThread() {
+   while (enable_logging) {
+    std::this_thread::sleep_for(log_timeout);
+    FlushBuffer();
+   }
+}
 /*
  * Stop and join the flush thread, set enable_logging = false
  */
-void LogManager::StopFlushThread() {}
-
+void LogManager::StopFlushThread() {
+   enable_logging=false;
+   flush_thread_->join();
+   delete flush_thread_;
+}
+void LogManager::FlushBufferAndWait(){
+    buffer_latch_.lock();
+    latch_.lock();
+    char*tmp=log_buffer_;
+    log_buffer_=flush_buffer_;
+    flush_buffer_=tmp;
+    lsn_t cur_lsn=next_lsn_-1;
+    int lenth=offset_;
+    offset_=0;
+    latch_.unlock();
+    std::thread t(&LogManager::BufferToDisk,this,cur_lsn,lenth);
+    t.join();
+}
+void LogManager::FlushBuffer() {
+    buffer_latch_.lock();
+    latch_.lock();
+    char*tmp=log_buffer_;
+    log_buffer_=flush_buffer_;
+    flush_buffer_=tmp;
+    lsn_t cur_lsn=next_lsn_-1;
+    int lenth=offset_;
+    offset_=0;
+    latch_.unlock();
+    std::thread t(&LogManager::BufferToDisk,this,cur_lsn,lenth);
+    t.detach();
+}
+void LogManager::BufferToDisk(lsn_t cur_lsn,int lenth){
+   disk_manager_->WriteLog(flush_buffer_,lenth);
+   persistent_lsn_=cur_lsn;
+   buffer_latch_.unlock();
+   block_txn_cv_.notify_all();
+}
+void LogManager::WaitFlush() {
+    std::unique_lock lock(latch_);
+    block_txn_cv_.wait(lock);
+}
 /*
  * append a log record into log buffer
  * you MUST set the log record's lsn within this method
@@ -49,6 +97,44 @@ void LogManager::StopFlushThread() {}
  *  }
  *
  */
-lsn_t LogManager::AppendLogRecord(LogRecord *log_record) { return INVALID_LSN; }
+lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
+  latch_.lock();
+  if(offset_+log_record->GetSize()>LOG_BUFFER_SIZE){
+     FlushBuffer();
+  }
+  log_record->lsn_ = next_lsn_++;
+  memcpy(log_buffer_ + offset_, log_record, LogRecord::HEADER_SIZE);
+  uint32_t pos = offset_ + LogRecord::HEADER_SIZE;
+  switch(log_record->log_record_type_){
+      case LogRecordType::INSERT:{
+          memcpy(log_buffer_ + pos, &log_record->insert_rid_, sizeof(RID));
+          pos += sizeof(RID);
+          log_record->insert_tuple_.SerializeTo(log_buffer_ + pos);
+      }
+      case LogRecordType::MARKDELETE:
+      case LogRecordType::ROLLBACKDELETE:
+      case LogRecordType::APPLYDELETE:{
+          memcpy(log_buffer_ + pos, &log_record->delete_rid_, sizeof(RID));
+          pos += sizeof(RID);
+          log_record->delete_tuple_.SerializeTo(log_buffer_ + pos);
+      };
+      case LogRecordType::UPDATE:{
+          memcpy(log_buffer_ + pos, &log_record->update_rid_, sizeof(RID));
+          pos += sizeof(RID);
+          log_record->old_tuple_.SerializeTo(log_buffer_ + pos);
+          // size + data
+          pos+=sizeof(uint32_t)+log_record->old_tuple_.GetLength();
+          log_record->new_tuple_.SerializeTo(log_buffer_ + pos);
+      };
+      case LogRecordType::NEWPAGE:{
+          memcpy(log_buffer_ + pos, &log_record->prev_page_id_, sizeof(page_id_t));
+          pos+=sizeof(page_id_t);
+          memcpy(log_buffer_ + pos, &log_record->page_id_, sizeof(page_id_t));
+      };
+  }
+  offset_+=log_record->GetSize();
+  latch_.unlock();
+  return log_record->lsn_;
+ }
 
 }  // namespace bustub

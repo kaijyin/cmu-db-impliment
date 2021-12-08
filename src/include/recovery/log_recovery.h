@@ -39,9 +39,12 @@ class LogRecovery {
 
   void Redo();
   void Undo();
-  bool DeserializeLogRecord(const char *data, LogRecord *log_record);
+  bool DeserializeLogRecord(int pos,LogRecord *log_record);
 
  private:
+  void RedoLog(LogRecord*log_record);
+  void UndoLog(LogRecord*log_record);
+  bool FetchLog(int log_offset,LogRecord*log_record);
   DiskManager *disk_manager_ __attribute__((__unused__));
   BufferPoolManager *buffer_pool_manager_ __attribute__((__unused__));
 
@@ -50,7 +53,7 @@ class LogRecovery {
   /** Mapping the log sequence number to log file offset for undos. */
   std::unordered_map<lsn_t, int> lsn_mapping_;
 
-  int offset_ __attribute__((__unused__));
+  int offset_;
   char *log_buffer_;
 };
 

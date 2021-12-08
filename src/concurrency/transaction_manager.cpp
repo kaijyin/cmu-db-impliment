@@ -31,6 +31,11 @@ Transaction *TransactionManager::Begin(Transaction *txn, IsolationLevel isolatio
   }
 
   txn_map[txn->GetTransactionId()] = txn;
+   if (enable_logging) {
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::BEGIN);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
+  }
   return txn;
 }
 
@@ -49,10 +54,15 @@ void TransactionManager::Commit(Transaction *txn) {
     write_set->pop_back();
   }
   write_set->clear();
-
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.
+  if (enable_logging) {
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
+    log_manager_->WaitFlush();
+  }
   global_txn_latch_.RUnlock();
 }
 
@@ -102,6 +112,12 @@ void TransactionManager::Abort(Transaction *txn) {
 
   // Release all the locks.
   ReleaseLocks(txn);
+  if (enable_logging) {
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ABORT);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
+    log_manager_->WaitFlush();
+  }
   // Release the global transaction latch.
   global_txn_latch_.RUnlock();
 }

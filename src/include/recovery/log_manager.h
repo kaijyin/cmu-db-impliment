@@ -43,15 +43,18 @@ class LogManager {
 
   void RunFlushThread();
   void StopFlushThread();
-
+  void WaitFlush();
+  void FlushBuffer();
+  void FlushBufferAndWait();
   lsn_t AppendLogRecord(LogRecord *log_record);
-
   inline lsn_t GetNextLSN() { return next_lsn_; }
   inline lsn_t GetPersistentLSN() { return persistent_lsn_; }
   inline void SetPersistentLSN(lsn_t lsn) { persistent_lsn_ = lsn; }
   inline char *GetLogBuffer() { return log_buffer_; }
 
  private:
+  void RunThread();
+  void BufferToDisk(lsn_t cur_lsn,int lenth);
   // TODO(students): you may add your own member variables
 
   /** The atomic counter which records the next log sequence number. */
@@ -61,13 +64,14 @@ class LogManager {
 
   char *log_buffer_;
   char *flush_buffer_;
+  uint32_t offset_{0};
 
   std::mutex latch_;
+  std::mutex buffer_latch_;
 
   std::thread *flush_thread_ __attribute__((__unused__));
 
-  std::condition_variable cv_;
-
+  std::condition_variable block_txn_cv_;
   DiskManager *disk_manager_ __attribute__((__unused__));
 };
 

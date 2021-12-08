@@ -18,11 +18,6 @@
 namespace bustub {
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
-  // if(txn->GetIsolationLevel()==IsolationLevel::READ_COMMITTED){
-  //  LOG_DEBUG("%d sharedlock %s iso read_commit", txn->GetTransactionId(), rid.ToString().c_str());
-  // }if(txn->GetIsolationLevel()==IsolationLevel::READ_COMMITTED){
-  //   LOG_DEBUG("%d sharedlock %s iso reap_read", txn->GetTransactionId(), rid.ToString().c_str());
-  // }
   const auto txn_id = txn->GetTransactionId();
   if (txn->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
     txn->SetState(TransactionState::ABORTED);
@@ -31,6 +26,9 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   if (txn->GetState() == TransactionState::SHRINKING) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::LOCK_ON_SHRINKING);
+  }
+   if(txn->IsSharedLocked(rid)){
+    return true;
   }
   mu_.lock();
   lock_table_[rid].req_sets_[txn_id] = LockMode::SHARED;
@@ -60,11 +58,13 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
-  LOG_DEBUG("%d want exclusive %s", txn->GetTransactionId(), rid.ToString().c_str());
   const auto txn_id = txn->GetTransactionId();
   if (txn->GetState() == TransactionState::SHRINKING) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::LOCK_ON_SHRINKING);
+  }
+  if(txn->IsExclusiveLocked(rid)){
+    return true;
   }
   mu_.lock();
   lock_table_[rid].req_sets_[txn_id] = LockMode::EXCLUSIVE;
@@ -89,11 +89,9 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::DEADLOCK);
   }
   txn->GetExclusiveLockSet()->emplace(rid);
-  LOG_DEBUG("%d exclusive %s sucess", txn->GetTransactionId(), rid.ToString().c_str());
   return true;
 }
 bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
-  LOG_DEBUG("%d want upgrade %s", txn->GetTransactionId(), rid.ToString().c_str());
   const auto txn_id = txn->GetTransactionId();
   mu_.lock();
   if (lock_table_[rid].upgrading_) {
@@ -108,9 +106,7 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
   std::unique_lock lock(latch_);
   while (txn->GetState() != TransactionState::ABORTED) {
     mu_.lock();
-    LOG_DEBUG("begin checkgrant");
     if (CheckGrant(txn, rid)) {
-      LOG_DEBUG("grant sucess");
       lock_table_[rid].req_sets_.erase(txn_id);
       lock_table_[rid].exclusive_locked_txn_ = txn_id;
       mu_.unlock();
@@ -130,11 +126,9 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
   lock_table_[rid].upgrading_ = false;
   mu_.unlock();
   txn->GetExclusiveLockSet()->emplace(rid);
-  LOG_DEBUG("%d upgrade %s sucess", txn->GetTransactionId(), rid.ToString().c_str());
   return true;
 }
 bool LockManager::Unlock(Transaction *txn, const RID &rid) {
-  LOG_DEBUG("%d unlock %s", txn->GetTransactionId(), rid.ToString().c_str());
   const auto txn_id = txn->GetTransactionId();
   if (txn->GetIsolationLevel() == IsolationLevel::REPEATABLE_READ && txn->GetState() == TransactionState::GROWING) {
     txn->SetState(TransactionState::SHRINKING);

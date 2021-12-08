@@ -33,7 +33,24 @@ BufferPoolManager::~BufferPoolManager() {
   delete[] pages_;
   delete replacer_;
 }
-
+bool BufferPoolManager::FetchVimFrame(frame_id_t *frame){
+  bool fetched=false;
+   if (!free_list_.empty()) {
+      *frame = free_list_.back();
+      free_list_.pop_back();
+      fetched = true;
+    } else if (replacer_->Victim(frame)) {
+      if (pages_[*frame].IsDirty()) {
+        if(pages_[*frame].GetLSN()>log_manager_->GetPersistentLSN()){
+            log_manager_->FlushBufferAndWait();
+        }
+        disk_manager_->WritePage(pages_[*frame].page_id_, pages_[*frame].data_);
+      }
+      page_table_.erase(pages_[*frame].page_id_);
+      fetched = true;
+    }
+    return fetched;
+}
 Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   // 1.     Search the page table for the requested page (P).
   // 1.1    If P exists, pin it and return it immediately.
@@ -51,26 +68,13 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
     replacer_->Pin(frame);
     pages_[frame].pin_count_++;
     fetched = true;
-  } else {
-    if (!free_list_.empty()) {
-      frame = free_list_.back();
-      free_list_.pop_back();
-      page_table_[page_id] = frame;
-      fetched = true;
-    } else if (replacer_->Victim(&frame)) {
-      if (pages_[frame].IsDirty()) {
-        disk_manager_->WritePage(pages_[frame].page_id_, pages_[frame].data_);
-      }
-      page_table_.erase(pages_[frame].page_id_);
-      fetched = true;
-    }
-    if (fetched) {
+  } else if(FetchVimFrame(&frame)) {
       disk_manager_->ReadPage(page_id, pages_[frame].data_);
       pages_[frame].page_id_ = page_id;
       pages_[frame].is_dirty_ = false;
       pages_[frame].pin_count_ = 1;
       page_table_[page_id] = frame;
-    }
+      fetched=true;
   }
   if (fetched) {
     res = &pages_[frame];
@@ -113,8 +117,10 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   //   latch_.unlock();
   //   return true;
   // }
-  disk_manager_->WritePage(page_id, pages_[frame].data_);
-  pages_[frame].is_dirty_ = false;
+  if(!enable_logging||pages_[frame].GetLSN()<=log_manager_->GetPersistentLSN()){
+      disk_manager_->WritePage(page_id, pages_[frame].data_);
+      pages_[frame].is_dirty_ = false;
+  }
   latch_.unlock();
   return true;
 }
@@ -126,31 +132,18 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   // 3.   Update P's metadata, zero out memory and add P to the page table.
   // 4.   Set the page ID output parameter. Return a pointer to P.
   latch_.lock();
-  Page *res = nullptr;
+  Page *page = nullptr;
   frame_id_t frame;
-  bool get = false;
-  if (!free_list_.empty()) {
-    frame = free_list_.back();
-    free_list_.pop_back();
-    get = true;
-  } else if (replacer_->Victim(&frame)) {
-    get = true;
-    if (pages_[frame].IsDirty()) {
-      disk_manager_->WritePage(pages_[frame].page_id_, pages_[frame].data_);
-    }
-    page_table_.erase(pages_[frame].page_id_);
-    pages_[frame].ResetMemory();
-    pages_[frame].is_dirty_ = false;
-  }
-  if (get) {
+  if(FetchVimFrame(&frame)) {
     *page_id = disk_manager_->AllocatePage();
+    pages_[frame].ResetMemory();
     pages_[frame].page_id_ = *page_id;
     pages_[frame].pin_count_ = 1;
     page_table_[*page_id] = frame;
-    res = &pages_[frame];
+    page = &pages_[frame];  
   }
   latch_.unlock();
-  return res;
+  return page;
 }
 
 bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
@@ -190,8 +183,10 @@ void BufferPoolManager::FlushAllPagesImpl() {
   for (auto &x : page_table_) {
     page_id_t page_id = x.first;
     frame_id_t frame = x.second;
-    disk_manager_->WritePage(page_id, pages_[frame].data_);
-    pages_[frame].is_dirty_ = false;
+    if(!enable_logging||pages_[frame].GetLSN()<=log_manager_->GetPersistentLSN()){
+      disk_manager_->WritePage(page_id, pages_[frame].data_);
+      pages_[frame].is_dirty_ = false;
+    }
   }
   latch_.unlock();
 }
