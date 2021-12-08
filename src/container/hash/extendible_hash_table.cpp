@@ -220,7 +220,7 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
   while (buk_node->IsEmpty() && (dir_node->GetLocalDepth(bucket_idx) > 0) &&
          (dir_node->GetLocalDepth(sib_idx) == dir_node->GetLocalDepth(bucket_idx))) {
     page_id_t sib_page_id = dir_node->GetBucketPageId(sib_idx);
-    uint32_t pre_local_dep=dir_node->GetLocalDepth(bucket_idx);
+    uint32_t pre_local_dep = dir_node->GetLocalDepth(bucket_idx);
     uint32_t add_bit = 1 << (dir_node->GetLocalDepth(bucket_idx) - 1);
     uint32_t low_idx = bucket_idx & (add_bit - 1);
     uint32_t global_size = dir_node->Size();
@@ -229,7 +229,7 @@ void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const 
       dir_node->SetBucketPageId(low_idx, sib_page_id);
       low_idx += add_bit;
     }
-    if (pre_local_dep==dir_node->GetGlobalDepth()&&dir_node->CanShrink()) {
+    if (pre_local_dep == dir_node->GetGlobalDepth() && dir_node->CanShrink()) {
       dir_node->DecrGlobalDepth();
     }
     bucket_idx = bucket_idx & dir_node->GetLocalDepthMask(bucket_idx);

@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/macros.h"
