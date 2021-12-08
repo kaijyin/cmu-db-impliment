@@ -36,6 +36,7 @@ bool LogRecovery::DeserializeLogRecord(int pos, LogRecord *log_record) {
       memcpy(&log_record->insert_rid_, log_buffer_ + pos, sizeof(RID));
       pos += sizeof(RID);
       log_record->insert_tuple_.DeserializeFrom(log_buffer_ + pos);
+      break;
     };
     case LogRecordType::MARKDELETE:
     case LogRecordType::ROLLBACKDELETE:
@@ -43,6 +44,7 @@ bool LogRecovery::DeserializeLogRecord(int pos, LogRecord *log_record) {
       memcpy(&log_record->delete_rid_, log_buffer_ + pos, sizeof(RID));
       pos += sizeof(RID);
       log_record->delete_tuple_.DeserializeFrom(log_buffer_ + pos);
+      break;
     };
     case LogRecordType::UPDATE: {
       memcpy(&log_record->update_rid_, log_buffer_ + pos, sizeof(RID));
@@ -51,12 +53,17 @@ bool LogRecovery::DeserializeLogRecord(int pos, LogRecord *log_record) {
       // length + data
       pos += sizeof(uint32_t) + log_record->old_tuple_.GetLength();
       log_record->new_tuple_.DeserializeFrom(log_buffer_ + pos + sizeof(RID));
+      break;
     };
     case LogRecordType::NEWPAGE: {
       memcpy(&log_record->prev_page_id_, log_buffer_ + pos, sizeof(page_id_t));
       pos += sizeof(page_id_t);
       memcpy(&log_record->page_id_, log_buffer_ + pos, sizeof(page_id_t));
+      break;
     };
+    default:{
+      break;
+    }
   }
   return true;
 }
@@ -91,11 +98,12 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
   lsn_mapping_[lsn] = offset_;
   active_txn_[txn_id] = lsn;
   switch (log_record->log_record_type_) {
-    case LogRecordType::BEGIN:;
-    // abort 就不管他,记录在active_txn里,undo会完成的
-    case LogRecordType::ABORT:;
+    // case LogRecordType::BEGIN:;
+    // // abort 就不管他,记录在active_txn里,undo会完成的
+    // case LogRecordType::ABORT:{break;}
     case LogRecordType::COMMIT: {
       active_txn_.erase(txn_id);
+      break;
     };
     case LogRecordType::INSERT: {
       TablePage *insert_page =
@@ -111,6 +119,7 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
         dirty = true;
       }
       buffer_pool_manager_->UnpinPage(insert_page->GetPageId(), dirty);
+      break;
     };
     case LogRecordType::MARKDELETE: {
       TablePage *delete_page =
@@ -125,6 +134,7 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
         dirty = true;
       }
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(), dirty);
+      break;
     };
     case LogRecordType::ROLLBACKDELETE: {
       TablePage *delete_page =
@@ -139,6 +149,7 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
         dirty = true;
       }
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(), dirty);
+      break;
     };
     case LogRecordType::APPLYDELETE: {
       TablePage *delete_page =
@@ -153,6 +164,7 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
         dirty = true;
       }
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(), dirty);
+      break;
     };
     case LogRecordType::UPDATE: {
       TablePage *update_page =
@@ -168,8 +180,10 @@ void LogRecovery::RedoLog(LogRecord *log_record) {
         dirty = true;
       }
       buffer_pool_manager_->UnpinPage(update_page->GetPageId(), dirty);
+      break;
     };
-    case LogRecordType::NEWPAGE:  // do nothing;
+    // case LogRecordType::NEWPAGE:break;  // do nothing;
+    default:{break;}
   }
 }
 bool LogRecovery::FetchLog(int log_offset, LogRecord *log_record) {
@@ -185,10 +199,9 @@ bool LogRecovery::FetchLog(int log_offset, LogRecord *log_record) {
 }
 
 void LogRecovery::UndoLog(LogRecord*log_record){
-   txn_id_t txn_id = log_record->GetTxnId();
   lsn_t lsn = log_record->GetLSN();
   switch (log_record->log_record_type_) {
-    case LogRecordType::COMMIT:;// do nothing
+    // case LogRecordType::COMMIT:break;// do nothing
     case LogRecordType::INSERT: {
       TablePage *insert_page =
           reinterpret_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record->insert_rid_.GetPageId()));
@@ -198,6 +211,7 @@ void LogRecovery::UndoLog(LogRecord*log_record){
       assert(insert_page->GetLSN() >= lsn); 
       insert_page->ApplyDelete(log_record->insert_rid_, nullptr, nullptr);
       buffer_pool_manager_->UnpinPage(insert_page->GetPageId(), true);
+      break;
     };
     case LogRecordType::MARKDELETE: {
       TablePage *delete_page =
@@ -208,6 +222,7 @@ void LogRecovery::UndoLog(LogRecord*log_record){
       assert(delete_page->GetLSN() >= lsn); 
       delete_page->RollbackDelete(log_record->delete_rid_, nullptr, nullptr);
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(), true);
+      break;
     };
     case LogRecordType::ROLLBACKDELETE: {
       TablePage *delete_page =
@@ -218,6 +233,7 @@ void LogRecovery::UndoLog(LogRecord*log_record){
       assert(delete_page->GetLSN() >= lsn); 
       delete_page->MarkDelete(log_record->delete_rid_,nullptr,nullptr,nullptr);
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(),true);
+      break;
     };
     case LogRecordType::APPLYDELETE: {
       TablePage *delete_page =
@@ -228,6 +244,7 @@ void LogRecovery::UndoLog(LogRecord*log_record){
       assert(delete_page->GetLSN() >= lsn); 
       delete_page->InsertTuple(log_record->delete_tuple_,&log_record->delete_rid_,nullptr, nullptr,nullptr);
       buffer_pool_manager_->UnpinPage(delete_page->GetPageId(), true);
+      break;
     };
     case LogRecordType::UPDATE: {
       TablePage *update_page =
@@ -239,8 +256,10 @@ void LogRecovery::UndoLog(LogRecord*log_record){
       update_page->UpdateTuple(log_record->old_tuple_, &log_record->new_tuple_, log_record->update_rid_, nullptr,
                                  nullptr, nullptr);
       buffer_pool_manager_->UnpinPage(update_page->GetPageId(), true);
+      break;
     };
-    case LogRecordType::NEWPAGE:  // do nothing;
+    // case LogRecordType::NEWPAGE:break;  // do nothing;
+    default:{break;}
   }
 }
 /*

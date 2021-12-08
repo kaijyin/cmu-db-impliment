@@ -19,7 +19,7 @@ void CheckpointManager::BeginCheckpoint() {
   // creating a consistent checkpoint. Do NOT allow transactions to resume at the end of this method, resume them
   // in CheckpointManager::EndCheckpoint() instead. This is for grading purposes.
   transaction_manager_->BlockAllTransactions();
-  log_manager_->AllFlushToDisk();
+  log_manager_->FlushBuffer();
   buffer_pool_manager_->FlushAllPages();
 }
 

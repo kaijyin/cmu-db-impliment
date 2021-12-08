@@ -25,7 +25,7 @@ namespace bustub {
  */
 void LogManager::RunFlushThread() {
   enable_logging=true;
-  flush_thread_=new std::thread(&RunThread,this);
+  flush_thread_=new std::thread(&LogManager::RunThread,this);
 }
 void LogManager::RunThread() {
    while (enable_logging) {
@@ -110,13 +110,15 @@ lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
           memcpy(log_buffer_ + pos, &log_record->insert_rid_, sizeof(RID));
           pos += sizeof(RID);
           log_record->insert_tuple_.SerializeTo(log_buffer_ + pos);
-      }
+          break;
+      };
       case LogRecordType::MARKDELETE:
       case LogRecordType::ROLLBACKDELETE:
       case LogRecordType::APPLYDELETE:{
           memcpy(log_buffer_ + pos, &log_record->delete_rid_, sizeof(RID));
           pos += sizeof(RID);
           log_record->delete_tuple_.SerializeTo(log_buffer_ + pos);
+          break;
       };
       case LogRecordType::UPDATE:{
           memcpy(log_buffer_ + pos, &log_record->update_rid_, sizeof(RID));
@@ -125,12 +127,15 @@ lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
           // size + data
           pos+=sizeof(uint32_t)+log_record->old_tuple_.GetLength();
           log_record->new_tuple_.SerializeTo(log_buffer_ + pos);
+          break;
       };
       case LogRecordType::NEWPAGE:{
           memcpy(log_buffer_ + pos, &log_record->prev_page_id_, sizeof(page_id_t));
           pos+=sizeof(page_id_t);
           memcpy(log_buffer_ + pos, &log_record->page_id_, sizeof(page_id_t));
+          break;
       };
+      default:;
   }
   offset_+=log_record->GetSize();
   latch_.unlock();
