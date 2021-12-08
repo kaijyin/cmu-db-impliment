@@ -41,8 +41,9 @@ bool BufferPoolManager::FetchVimFrame(frame_id_t *frame){
       fetched = true;
     } else if (replacer_->Victim(frame)) {
       if (pages_[*frame].IsDirty()) {
-        if(pages_[*frame].GetLSN()>log_manager_->GetPersistentLSN()){
-            log_manager_->FlushBufferAndWait();
+        if(enable_logging&&pages_[*frame].GetLSN()>log_manager_->GetPersistentLSN()){
+            log_manager_->FlushBuffer();
+            log_manager_->WaitFlush();
         }
         disk_manager_->WritePage(pages_[*frame].page_id_, pages_[*frame].data_);
       }
@@ -112,15 +113,12 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
     return false;
   }
   frame_id_t frame = page_table_[page_id];
-  // 不是脏文件是否可以不需要读入磁盘
-  // if (!pages_[frame].IsDirty()) {
-  //   latch_.unlock();
-  //   return true;
-  // }
-  if(!enable_logging||pages_[frame].GetLSN()<=log_manager_->GetPersistentLSN()){
-      disk_manager_->WritePage(page_id, pages_[frame].data_);
-      pages_[frame].is_dirty_ = false;
-  }
+  // 不是脏文件是否可以不需要读入磁盘,must flush,cause the lsn is not data,so dirty cant control it
+  if(enable_logging&&pages_[frame].GetLSN()>log_manager_->GetPersistentLSN()){
+      log_manager_->FlushBuffer();
+  }  
+  disk_manager_->WritePage(page_id, pages_[frame].data_);
+  pages_[frame].is_dirty_ = false;
   latch_.unlock();
   return true;
 }
@@ -183,10 +181,11 @@ void BufferPoolManager::FlushAllPagesImpl() {
   for (auto &x : page_table_) {
     page_id_t page_id = x.first;
     frame_id_t frame = x.second;
-    if(!enable_logging||pages_[frame].GetLSN()<=log_manager_->GetPersistentLSN()){
+     if(enable_logging&&pages_[frame].GetLSN()>log_manager_->GetPersistentLSN()){
+      log_manager_->FlushBuffer();
+      }  
       disk_manager_->WritePage(page_id, pages_[frame].data_);
       pages_[frame].is_dirty_ = false;
-    }
   }
   latch_.unlock();
 }

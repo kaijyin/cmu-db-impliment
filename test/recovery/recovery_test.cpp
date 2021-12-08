@@ -58,7 +58,7 @@ TEST_F(RecoveryTest, RedoTest) {
   auto *test_table = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
                                    bustub_instance->log_manager_, txn);
   page_id_t first_page_id = test_table->GetFirstPageId();
-
+  // LOG_DEBUG("first page id:%d",first_page_id);
   RID rid;
   RID rid1;
   Column col1{"a", TypeId::VARCHAR, 20};
@@ -72,7 +72,7 @@ TEST_F(RecoveryTest, RedoTest) {
   auto val_0 = tuple.GetValue(&schema, 0);
   auto val1_1 = tuple1.GetValue(&schema, 1);
   auto val1_0 = tuple1.GetValue(&schema, 0);
-
+ 
   ASSERT_TRUE(test_table->InsertTuple(tuple, &rid, txn));
   ASSERT_TRUE(test_table->InsertTuple(tuple1, &rid1, txn));
 

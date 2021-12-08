@@ -27,7 +27,7 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_RedoTestWithOneTxn) {
+TEST(RecoveryTest,RedoTestWithOneTxn) {
   remove("test.db");
   remove("test.log");
 
@@ -132,7 +132,7 @@ TEST(RecoveryTest, DISABLED_RedoTestWithOneTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_UndoTestWithOneTxn) {
+TEST(RecoveryTest, UndoTestWithOneTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -226,7 +226,7 @@ TEST(RecoveryTest, DISABLED_UndoTestWithOneTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_BasicRedoTestWithOneTxn) {
+TEST(RecoveryTest, BasicRedoTestWithOneTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -338,6 +338,10 @@ TEST(RecoveryTest, DISABLED_BasicRedoTestWithOneTxn) {
   delete txn;
   delete test_table;
   delete log_recovery;
+  // ASSERT_EQ(old_tuple.GetValue(&schema, 4).CompareEquals(val_4), CmpBool::CmpTrue);
+  // ASSERT_EQ(old_tuple.GetValue(&schema, 0).CompareEquals(val_0), CmpBool::CmpTrue);
+  // ASSERT_EQ(old_tuple.GetValue(&schema, 4).CompareEquals(val1_4), CmpBool::CmpFalse);
+  // ASSERT_EQ(old_tuple.GetValue(&schema, 0).CompareEquals(val1_0), CmpBool::CmpFalse);
 
   ASSERT_EQ(old_tuple.GetValue(&schema, 4).CompareEquals(val_4), CmpBool::CmpFalse);
   ASSERT_EQ(old_tuple.GetValue(&schema, 0).CompareEquals(val_0), CmpBool::CmpFalse);
@@ -357,7 +361,7 @@ TEST(RecoveryTest, DISABLED_BasicRedoTestWithOneTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_BasicUndoTestWithOneTxn) {
+TEST(RecoveryTest, BasicUndoTestWithOneTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -489,7 +493,7 @@ TEST(RecoveryTest, DISABLED_BasicUndoTestWithOneTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_RedoTestWithMultipleTxn) {
+TEST(RecoveryTest, RedoTestWithMultipleTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -613,7 +617,7 @@ TEST(RecoveryTest, DISABLED_RedoTestWithMultipleTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_UndoTestWithMultipleTxn) {
+TEST(RecoveryTest, UndoTestWithMultipleTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -732,7 +736,7 @@ TEST(RecoveryTest, DISABLED_UndoTestWithMultipleTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_MixedTestWithMultipleTxn) {
+TEST(RecoveryTest, MixedTestWithMultipleTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -859,7 +863,7 @@ TEST(RecoveryTest, DISABLED_MixedTestWithMultipleTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_GroupCommitTest) {
+TEST(RecoveryTest, GroupCommitTest) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -1001,7 +1005,7 @@ TEST(RecoveryTest, DISABLED_GroupCommitTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_BufferPoolSyncFlushTestWithOneTxn) {
+TEST(RecoveryTest, BufferPoolSyncFlushTestWithOneTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -1097,7 +1101,7 @@ TEST(RecoveryTest, DISABLED_BufferPoolSyncFlushTestWithOneTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_BufferPoolSyncFlushTestWithMultipleTxn) {
+TEST(RecoveryTest, BufferPoolSyncFlushTestWithMultipleTxn) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -1224,7 +1228,7 @@ TEST(RecoveryTest, DISABLED_BufferPoolSyncFlushTestWithMultipleTxn) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_CheckpointDurabilityTest) {
+TEST(RecoveryTest, CheckpointDurabilityTest) {
 #undef LOG_BUFFER_SIZE
 #define LOG_BUFFER_SIZE PAGE_SIZE
 
@@ -1234,6 +1238,7 @@ TEST(RecoveryTest, DISABLED_CheckpointDurabilityTest) {
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
 
+  // std::this_thread::sleep_for(std::chrono::seconds(10));
   EXPECT_FALSE(enable_logging);
   LOG_INFO("Skip system recovering...");
 
@@ -1353,7 +1358,7 @@ TEST(RecoveryTest, DISABLED_CheckpointDurabilityTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_CheckpointConcurrencyTest) {
+TEST(RecoveryTest, CheckpointConcurrencyTest) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -1453,7 +1458,7 @@ TEST(RecoveryTest, DISABLED_CheckpointConcurrencyTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_TestAsyncLogging) {
+TEST(RecoveryTest, TestAsyncLogging) {
   // test when disk manager is flushing buffer to disk,
   // tuple can be inserted
 

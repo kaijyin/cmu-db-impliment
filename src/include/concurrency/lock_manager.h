@@ -137,13 +137,11 @@ class LockManager {
   };
   bool CheckGrant(Transaction *txn, const RID &rid) {
     if (lock_table_[rid].exclusive_locked_txn_ != INVALID_TXN_ID) {
-      LOG_DEBUG("grant fail by rid be exlocked");
       return false;
     }
     if (lock_table_[rid].req_sets_[txn->GetTransactionId()] == LockMode::SHARED) {
       return true;
     }
-    LOG_DEBUG("grant fail by sharreq not empty");
     return lock_table_[rid].share_locked_req_sets_.empty();
   }
   txn_id_t tarjan(txn_id_t u) {

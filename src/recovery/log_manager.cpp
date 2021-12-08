@@ -12,6 +12,8 @@
 
 #include "recovery/log_manager.h"
 
+#include "common/logger.h"
+
 namespace bustub {
 
 /*
@@ -28,10 +30,36 @@ void LogManager::RunFlushThread() {
   flush_thread_=new std::thread(&LogManager::RunThread,this);
 }
 void LogManager::RunThread() {
+    std::future<void> flush_log_f = flush_log_p.get_future();
    while (enable_logging) {
-    std::this_thread::sleep_for(log_timeout);
-    FlushBuffer();
-   }
+    flush_log_f.wait_for(std::chrono::seconds(log_timeout));
+    latch_.lock();
+    if(offset_==0){
+        // tiny upgrade
+        latch_.unlock();
+        block_txn_cv_.notify_all();
+        continue;
+    }
+    LOG_DEBUG("flush log buffer,size:%d",offset_);
+    char*tmp=log_buffer_;
+    log_buffer_=flush_buffer_;
+    flush_buffer_=tmp;
+    lsn_t cur_lsn=next_lsn_-1;
+    int lenth=offset_;
+    memset(log_buffer_,0,LOG_BUFFER_SIZE);
+    offset_=0;
+    latch_.unlock();
+    disk_manager_->WriteLog(flush_buffer_,lenth);
+    persistent_lsn_=cur_lsn;
+    block_txn_cv_.notify_all();
+  }
+}
+void LogManager::FlushBuffer(){
+    try{
+        flush_log_p.set_value();
+    }catch (std::exception& e) {
+        std::cout << "[exception caught: " << e.what() << "]\n";
+    }
 }
 /*
  * Stop and join the flush thread, set enable_logging = false
@@ -41,38 +69,7 @@ void LogManager::StopFlushThread() {
    flush_thread_->join();
    delete flush_thread_;
 }
-void LogManager::FlushBufferAndWait(){
-    buffer_latch_.lock();
-    latch_.lock();
-    char*tmp=log_buffer_;
-    log_buffer_=flush_buffer_;
-    flush_buffer_=tmp;
-    lsn_t cur_lsn=next_lsn_-1;
-    int lenth=offset_;
-    offset_=0;
-    latch_.unlock();
-    std::thread t(&LogManager::BufferToDisk,this,cur_lsn,lenth);
-    t.join();
-}
-void LogManager::FlushBuffer() {
-    buffer_latch_.lock();
-    latch_.lock();
-    char*tmp=log_buffer_;
-    log_buffer_=flush_buffer_;
-    flush_buffer_=tmp;
-    lsn_t cur_lsn=next_lsn_-1;
-    int lenth=offset_;
-    offset_=0;
-    latch_.unlock();
-    std::thread t(&LogManager::BufferToDisk,this,cur_lsn,lenth);
-    t.detach();
-}
-void LogManager::BufferToDisk(lsn_t cur_lsn,int lenth){
-   disk_manager_->WriteLog(flush_buffer_,lenth);
-   persistent_lsn_=cur_lsn;
-   buffer_latch_.unlock();
-   block_txn_cv_.notify_all();
-}
+
 void LogManager::WaitFlush() {
     std::unique_lock lock(latch_);
     block_txn_cv_.wait(lock);
@@ -82,31 +79,22 @@ void LogManager::WaitFlush() {
  * you MUST set the log record's lsn within this method
  * @return: lsn that is assigned to this log record
  *
- *
- * example below
- * // First, serialize the must have fields(20 bytes in total)
- * log_record.lsn_ = next_lsn_++;
- * memcpy(log_buffer_ + offset_, &log_record, 20);
- * int pos = offset_ + 20;
- *
- * if (log_record.log_record_type_ == LogRecordType::INSERT) {
- *    memcpy(log_buffer_ + pos, &log_record.insert_rid_, sizeof(RID));
- *    pos += sizeof(RID);
- *    // we have provided serialize function for tuple class
- *    log_record.insert_tuple_.SerializeTo(log_buffer_ + pos);
- *  }
- *
  */
 lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
   latch_.lock();
-  if(offset_+log_record->GetSize()>LOG_BUFFER_SIZE){
+  while(offset_+log_record->GetSize()>LOG_BUFFER_SIZE){
+      latch_.unlock();
      FlushBuffer();
+     latch_.lock();
   }
+//   LOG_DEBUG("append log %s",log_record->ToString().c_str());
   log_record->lsn_ = next_lsn_++;
   memcpy(log_buffer_ + offset_, log_record, LogRecord::HEADER_SIZE);
   uint32_t pos = offset_ + LogRecord::HEADER_SIZE;
   switch(log_record->log_record_type_){
       case LogRecordType::INSERT:{
+        //   LOG_DEBUG("insert tuple LOG rid: %s size:%d",log_record->insert_rid_.ToString().c_str(),
+        //   log_record->insert_tuple_.GetLength());
           memcpy(log_buffer_ + pos, &log_record->insert_rid_, sizeof(RID));
           pos += sizeof(RID);
           log_record->insert_tuple_.SerializeTo(log_buffer_ + pos);
@@ -121,6 +109,9 @@ lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
           break;
       };
       case LogRecordType::UPDATE:{
+        //   LOG_DEBUG("append update_record rid: %s  old size:%d new size:%d", 
+        // log_record->update_rid_.ToString().c_str(),
+        //           log_record->old_tuple_.GetLength(),log_record->new_tuple_.GetLength());
           memcpy(log_buffer_ + pos, &log_record->update_rid_, sizeof(RID));
           pos += sizeof(RID);
           log_record->old_tuple_.SerializeTo(log_buffer_ + pos);
