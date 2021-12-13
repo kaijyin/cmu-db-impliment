@@ -16,30 +16,24 @@ namespace bustub {
 
 DistinctExecutor::DistinctExecutor(ExecutorContext *exec_ctx, const DistinctPlanNode *plan,
                                    std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void DistinctExecutor::Init() {}
+void DistinctExecutor::Init() { child_executor_->Init(); }
 
 bool DistinctExecutor::Next(Tuple *tuple, RID *rid) {
-  Tuple cur_tuple;
   while (true) {
-    if (!child_executor_->Next(&cur_tuple, rid)) {
+    if (!child_executor_->Next(tuple, rid)) {
       return false;
     }
     std::vector<Value> cols;
-    auto col_num=child_executor_->GetOutputSchema()->GetColumnCount();
-    for(uint32_t i=0;i<col_num;i++) {
-         cols.push_back(cur_tuple.GetValue(child_executor_->GetOutputSchema(),i));
-     }
-     if(dtb_.Insert(DistinctKey(cols))){
-         break;
-     }
+    auto col_num = child_executor_->GetOutputSchema()->GetColumnCount();
+    for (uint32_t i = 0; i < col_num; i++) {
+      cols.push_back(tuple->GetValue(child_executor_->GetOutputSchema(), i));
+    }
+    if (dtb_.Insert(DistinctKey(cols))) {
+      break;
+    }
   }
-  std::vector<Value> valus;
-  for (auto &col : GetOutputSchema()->GetColumns()) {
-    valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, child_executor_->GetOutputSchema()));
-  }
-  *tuple = Tuple(valus, GetOutputSchema());
   return true;
 }
 

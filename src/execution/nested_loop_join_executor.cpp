@@ -26,11 +26,11 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
 void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
-  left_executor_->Next(&left_tuple, &left_rid);
+  left_executor_->Next(&left_tuple_, &left_rid_);
 }
 
 bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
-  if (left_rid.GetPageId() == INVALID_PAGE_ID) {
+  if (left_rid_.GetPageId() == INVALID_PAGE_ID) {
     return false;
   }
   Tuple right_tuple;
@@ -38,20 +38,20 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
   bool res = false;
   while (!res) {
     while (!right_executor_->Next(&right_tuple, &right_rid)) {
-      if (!left_executor_->Next(&left_tuple, &left_rid)) {
+      if (!left_executor_->Next(&left_tuple_, &left_rid_)) {
         return false;
       }
       right_executor_->Init();
     }
     auto predicate = plan_->Predicate();
     res = predicate
-              ->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(), &right_tuple,
+              ->EvaluateJoin(&left_tuple_, left_executor_->GetOutputSchema(), &right_tuple,
                              right_executor_->GetOutputSchema())
               .GetAs<bool>();
   }
   std::vector<Value> valus;
   for (auto &col : GetOutputSchema()->GetColumns()) {
-    valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(), &right_tuple,
+    valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple_, left_executor_->GetOutputSchema(), &right_tuple,
                                                 right_executor_->GetOutputSchema()));
   }
   *tuple = Tuple(valus, GetOutputSchema());

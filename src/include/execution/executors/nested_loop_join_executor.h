@@ -58,8 +58,8 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   Transaction *txn_;
   std::unique_ptr<AbstractExecutor> left_executor_;
   std::unique_ptr<AbstractExecutor> right_executor_;
-  Tuple left_tuple;
-  RID left_rid;
+  Tuple left_tuple_;
+  RID left_rid_;
 };
 
 }  // namespace bustub

@@ -20,20 +20,14 @@ LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *pla
 
 void LimitExecutor::Init() {
   child_executor_->Init();
-  remain = plan_->GetLimit();
+  remain_ = plan_->GetLimit();
 }
 
 bool LimitExecutor::Next(Tuple *tuple, RID *rid) {
-  Tuple cur_tuple;
-  if (remain == 0 || !child_executor_->Next(&cur_tuple, rid)) {
+  if (remain_ == 0 || !child_executor_->Next(tuple, rid)) {
     return false;
   }
-  std::vector<Value> valus;
-  for (auto &col : GetOutputSchema()->GetColumns()) {
-    valus.push_back(col.GetExpr()->Evaluate(&cur_tuple, child_executor_->GetOutputSchema()));
-  }
-  *tuple = Tuple(valus, GetOutputSchema());
-  remain--;
+  remain_--;
   return true;
 }
 

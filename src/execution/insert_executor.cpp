@@ -34,10 +34,10 @@ void InsertExecutor::Init() {
 bool InsertExecutor::Next([[maybe_unused]] Tuple *insert_tuple, RID *rid) {
   if (plan_->IsRawInsert()) {
     auto rows = plan_->RawValues();
-    if (now_row == rows.size()) {
+    if (now_row_ == rows.size()) {
       return false;
     }
-    auto &row = rows[now_row++];
+    auto &row = rows[now_row_++];
     *insert_tuple = Tuple(row, &table_info_->schema_);
   } else {
     if (!child_executor_->Next(insert_tuple, rid)) {

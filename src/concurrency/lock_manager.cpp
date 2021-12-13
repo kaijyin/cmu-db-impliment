@@ -17,18 +17,10 @@
 
 namespace bustub {
 
-bool LockManager::LockShared(Transaction *txn, const RID &rid) {
-  return true;
-}
+bool LockManager::LockShared(Transaction *txn, const RID &rid) { return true; }
 
-bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
-  return true;
-}
-bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
-  return true;
-}
-bool LockManager::Unlock(Transaction *txn, const RID &rid) {
-   return true;
-}
+bool LockManager::LockExclusive(Transaction *txn, const RID &rid) { return true; }
+bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) { return true; }
+bool LockManager::Unlock(Transaction *txn, const RID &rid) { return true; }
 
 }  // namespace bustub

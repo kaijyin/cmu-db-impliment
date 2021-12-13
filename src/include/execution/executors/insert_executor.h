@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -63,7 +64,7 @@ class InsertExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   TableInfo *table_info_;
   TableHeap *table_heap_;
-  uint32_t now_row{0};
+  uint32_t now_row_{0};
   std::vector<bustub::IndexInfo *> indexs_;
 };
 

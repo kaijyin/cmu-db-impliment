@@ -9,9 +9,9 @@
 
 #include "buffer/buffer_pool_manager_instance.h"
 #include "common/logger.h"
-#include "index/b_plus_tree.h"
-#include "vtable/virtual_table.h"
 #include "gtest/gtest.h"
+#include "storage/index/b_plus_tree_index.h"
+#include "vtable/virtual_table.h"
 
 namespace cmudb {
 TEST(BPlusTreeTests, SplitTest) {
@@ -23,8 +23,7 @@ TEST(BPlusTreeTests, SplitTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -69,8 +68,7 @@ TEST(BPlusTreeTests, MergeTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -112,8 +110,7 @@ TEST(BPlusTreeTests, InsertTest1) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -144,8 +141,7 @@ TEST(BPlusTreeTests, InsertTest1) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -168,8 +164,7 @@ TEST(BPlusTreeTests, InsertTest2) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -200,8 +195,7 @@ TEST(BPlusTreeTests, InsertTest2) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -213,8 +207,7 @@ TEST(BPlusTreeTests, InsertTest2) {
   start_key = 3;
   current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -230,14 +223,13 @@ TEST(BPlusTreeTests, InsertTest2) {
 
 TEST(BPlusTreeTests, DeleteTest1) {
   // create KeyComparator and index schema
-  std::string createStmt = "a bigint";
-  Schema *key_schema = ParseCreateStatement(createStmt);
+  std::string create_stmt = "a bigint";
+  Schema *key_schema = ParseCreateStatement(create_stmt);
   GenericComparator<8> comparator(key_schema);
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -268,8 +260,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -288,8 +279,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
   current_key = start_key;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -313,8 +303,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(5, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -345,8 +334,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -365,8 +353,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   current_key = start_key;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(0, location.GetPageId());
     EXPECT_EQ(current_key, location.GetSlotNum());
@@ -390,8 +377,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(20, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
-                                                           comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
 
@@ -428,8 +414,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     current_key = current_key + 1;
   }
 
@@ -449,8 +434,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   start_key = remove_scale;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false;
-       ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator.isEnd() == false; ++iterator) {
     size = size + 1;
   }
   EXPECT_EQ(100, size);
@@ -471,4 +455,4 @@ TEST(BPlusTreeTests, ScaleTest) {
   remove("test.log");
 }
 
-} // namespace cmudb
+}  // namespace cmudb

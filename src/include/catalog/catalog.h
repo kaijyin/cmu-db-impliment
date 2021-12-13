@@ -21,6 +21,7 @@
 #include "buffer/buffer_pool_manager.h"
 #include "catalog/schema.h"
 #include "container/hash/hash_function.h"
+#include "storage/index/b_plus_tree_index.h"
 #include "storage/index/extendible_hash_table_index.h"
 #include "storage/index/index.h"
 #include "storage/table/table_heap.h"

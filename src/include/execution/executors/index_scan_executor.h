@@ -19,7 +19,6 @@
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/index_scan_plan.h"
 #include "storage/table/tuple.h"
-#include "b_plus_tree_index.h"
 
 namespace bustub {
 

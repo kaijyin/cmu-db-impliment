@@ -21,8 +21,7 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
       plan_(plan),
       txn_(exec_ctx->GetTransaction()),
       left_executor_(std::move(left_executor)),
-      right_executor_(std::move(right_executor))
-       {}
+      right_executor_(std::move(right_executor)) {}
 
 void HashJoinExecutor::Init() {
   left_executor_->Init();
@@ -37,26 +36,24 @@ void HashJoinExecutor::Init() {
 }
 
 bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
-  Tuple right_tuple;
-  RID right_rid;
-  if (cur_idx == cur_tuples.size()) {
+  if (cur_idx_ == cur_tuples_.size()) {
     while (true) {
-      if (!right_executor_->Next(&right_tuple, &right_rid)) {
+      if (!right_executor_->Next(&right_tuple_, &right_rid_)) {
         return false;
       }
-      auto right_expr = reinterpret_cast<const ColumnValueExpression *>(plan_->RightJoinKeyExpression());
-      auto cur_key = right_expr->Evaluate(&right_tuple, right_executor_->GetOutputSchema());
-      cur_tuples = jht_.GetTuples(HashjoinKey(cur_key)).tuples;
-      cur_idx = 0;
-      if (!cur_tuples.empty()) {
+      auto right_expr = plan_->RightJoinKeyExpression();
+      auto cur_key = right_expr->Evaluate(&right_tuple_, right_executor_->GetOutputSchema());
+      cur_tuples_ = jht_.GetTuples(HashjoinKey(cur_key)).tuples_;
+      cur_idx_ = 0;
+      if (!cur_tuples_.empty()) {
         break;
       }
     }
   }
-  Tuple left_tuple = cur_tuples[cur_idx++];
+  Tuple left_tuple = cur_tuples_[cur_idx_++];
   std::vector<Value> valus;
   for (auto &col : GetOutputSchema()->GetColumns()) {
-    valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(), &right_tuple,
+    valus.push_back(col.GetExpr()->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(), &right_tuple_,
                                                 right_executor_->GetOutputSchema()));
   }
   *tuple = Tuple(valus, GetOutputSchema());

@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "execution/executors/abstract_executor.h"
+#include "execution/expressions/abstract_expression.h"
 #include "execution/plans/limit_plan.h"
 
 namespace bustub {
@@ -53,6 +54,6 @@ class LimitExecutor : public AbstractExecutor {
   const LimitPlanNode *plan_;
   /** The child executor to obtain value from. */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  uint32_t remain;
+  uint32_t remain_;
 };
 }  // namespace bustub
