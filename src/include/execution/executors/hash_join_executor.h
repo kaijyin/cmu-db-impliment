@@ -17,12 +17,62 @@
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
-#include "column_value_expression.h"
 #include "execution/plans/hash_join_plan.h"
 #include "common/util/hash_util.h"
 #include "storage/table/tuple.h"
 
+
 namespace bustub {
+
+struct HashjoinKey {
+  Value key;
+  HashjoinKey(){};
+  HashjoinKey(Value value){
+    key=value;
+  }
+  bool operator==(const HashjoinKey &other) const {
+    return key.CompareEquals(other.key)==CmpBool::CmpTrue;
+  }
+};
+
+struct HashjoinValue {
+  //cosntruct left join table's tuple in hash table
+  std::vector<Tuple> tuples;
+};
+
+}
+namespace std {
+
+/** Implements std::hash on AggregateKey */
+template <>
+struct hash<bustub::HashjoinKey> {
+  std::size_t operator()(const bustub::HashjoinKey &hash_key) const {
+    if(hash_key.key.IsNull()){
+      return 0;
+    }
+    return bustub::HashUtil::HashValue(&hash_key.key);
+  }
+};
+
+}  // namespace std
+
+namespace bustub {
+class SimpleHashjoinTable {
+ public:
+  SimpleHashjoinTable(){};
+  void InsertCombine(const HashjoinKey &hash_key, const Tuple &tuple) {
+    ht_[hash_key].tuples.push_back(tuple);
+  }
+  HashjoinValue GetTuples(const HashjoinKey&hash_key){
+    if(ht_.count(hash_key)!=0){
+      return ht_[hash_key];
+    }
+    return HashjoinValue{};
+  }
+ private:
+  std::unordered_map<HashjoinKey, HashjoinValue> ht_{};
+};
+
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */
@@ -64,51 +114,5 @@ class HashJoinExecutor : public AbstractExecutor {
   size_t cur_idx{0};
 };
 
-struct HashjoinKey {
-  Value key;
-  HashjoinKey(){};
-  HashjoinKey(Value value){
-    key=value;
-  }
-  bool operator==(const HashjoinKey &other) const {
-    return key.CompareEquals(other.key)==CmpBool::CmpTrue;
-  }
-};
-
-struct HashjoinValue {
-  //cosntruct left join table's tuple in hash table
-  std::vector<Tuple> tuples;
-};
-
-class SimpleHashjoinTable {
- public:
-  SimpleHashjoinTable(){};
-  void InsertCombine(const HashjoinKey &hash_key, const Tuple &tuple) {
-    ht_[hash_key].tuples.push_back(tuple);
-  }
-  HashjoinValue GetTuples(const HashjoinKey&hash_key){
-    if(ht_.count(hash_key)!=0){
-      return ht_[hash_key];
-    }
-    return HashjoinValue{};
-  }
- private:
-  std::unordered_map<HashjoinKey, HashjoinValue> ht_{};
-};
 
 }  // namespace bustub
-
-namespace std {
-
-/** Implements std::hash on AggregateKey */
-template <>
-struct hash<bustub::HashjoinKey> {
-  std::size_t operator()(const bustub::HashjoinKey &hash_key) const {
-    if(hash_key.key.IsNull()){
-      return 0;
-    }
-    return bustub::HashUtil::HashValue(&hash_key.key);
-  }
-};
-
-}  // namespace std

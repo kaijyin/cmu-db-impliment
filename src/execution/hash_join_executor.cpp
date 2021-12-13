@@ -27,7 +27,7 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
 void HashJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
-  auto left_expr = reinterpret_cast<const ColumnValueExpression *>(plan_->LeftJoinKeyExpression());
+  auto left_expr = plan_->LeftJoinKeyExpression();
   Tuple tuple;
   RID rid;
   while (left_executor_->Next(&tuple, &rid)) {
