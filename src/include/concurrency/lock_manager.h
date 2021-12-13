@@ -27,30 +27,19 @@
 
 namespace bustub {
 
-class TransactionManager;
-
 /**
  * LockManager handles transactions asking for locks on records.
  */
 class LockManager {
   enum class LockMode { SHARED, EXCLUSIVE };
 
-  class LockRequest {
-   public:
-    LockRequest(txn_id_t txn_id, LockMode lock_mode) : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
-
-    txn_id_t txn_id_;
-    LockMode lock_mode_;
-    bool granted_;
-  };
-
   class LockRequestQueue {
    public:
-    std::list<LockRequest> request_queue_;
-    // for notifying blocked transactions on this rid
-    std::condition_variable cv_;
-    // txn_id of an upgrading transaction (if any)
-    txn_id_t upgrading_ = INVALID_TXN_ID;
+    std::unordered_set<txn_id_t> share_locked_req_sets_;
+    std::unordered_map<txn_id_t, LockMode> req_sets_;
+    std::condition_variable cv_;  // for notifying blocked transactions on this rid
+    bool upgrading_ = false;
+    txn_id_t exclusive_locked_txn_ = INVALID_TXN_ID;
   };
 
  public:
@@ -105,10 +94,59 @@ class LockManager {
   bool Unlock(Transaction *txn, const RID &rid);
 
  private:
+  void AbortTxn(txn_id_t txn_id, const RID &rid) {
+    Transaction *ex_txn = txn_map_[txn_id];
+    // abort the yunger transaction
+    ex_txn->SetState(TransactionState::ABORTED);
+    std::unordered_set<RID> lock_set;
+    for (auto item : *ex_txn->GetExclusiveLockSet()) {
+      lock_set.emplace(item);
+    }
+    for (auto item : *ex_txn->GetSharedLockSet()) {
+      lock_set.emplace(item);
+    }
+    for (auto locked_rid : lock_set) {
+      if (txn_id == lock_table_[locked_rid].exclusive_locked_txn_) {
+        lock_table_[locked_rid].exclusive_locked_txn_ = INVALID_TXN_ID;
+      }
+      lock_table_[locked_rid].share_locked_req_sets_.erase(txn_id);
+      // don't notify other txn in this rid sets
+      if (locked_rid.Get() != rid.Get()) {
+        lock_table_[locked_rid].cv_.notify_all();
+      }
+      ex_txn->GetSharedLockSet()->erase(locked_rid);
+      ex_txn->GetExclusiveLockSet()->erase(locked_rid);
+    }
+  }
+  void WoundWait(txn_id_t txn_id, const RID &rid) {
+    txn_id_t ex_txn_id = lock_table_[rid].exclusive_locked_txn_;
+    if (ex_txn_id != INVALID_TXN_ID && ex_txn_id > txn_id) {
+      AbortTxn(ex_txn_id, rid);
+    }
+    if(lock_table_[rid].req_sets_[txn_id] == LockMode::EXCLUSIVE&&!lock_table_[rid].share_locked_req_sets_.empty()){
+      for(auto&sh_txn_id:lock_table_[rid].share_locked_req_sets_){
+        if(sh_txn_id>txn_id){
+          AbortTxn(sh_txn_id,rid);
+        }
+      }         
+    }
+  }
+  bool CheckGrant(txn_id_t txn_id, const RID &rid) {
+    WoundWait(txn_id, rid);
+    txn_id_t txn_id = lock_table_[rid].exclusive_locked_txn_;
+    if (txn_id != INVALID_TXN_ID) {
+      return false;
+    }
+    if (lock_table_[rid].req_sets_[txn_id] == LockMode::SHARED) {
+      return true;
+    }
+    return lock_table_[rid].share_locked_req_sets_.empty();
+  }
   std::mutex latch_;
-
+  std::mutex mu_;
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
+  std::unordered_map<txn_id_t, Transaction *> txn_map_;
 };
 
 }  // namespace bustub
