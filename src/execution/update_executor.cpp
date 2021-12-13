@@ -17,11 +17,49 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      txn_(exec_ctx->GetTransaction()),
+      table_info_(exec_ctx->GetCatalog()->GetTable(plan_->TableOid())),
+      child_executor_(std::move(child_executor)),
+      table_heap_(table_info_->table_.get()),
+      indexs_(GetExecutorContext()->GetCatalog()->GetTableIndexes(table_info_->name_)) {}
 
-void UpdateExecutor::Init() {}
+void UpdateExecutor::Init() { child_executor_->Init(); }
 
-bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) { return false; }
+bool UpdateExecutor::Next([[maybe_unused]] Tuple *old_tuple, RID *rid) {
+  if (child_executor_->Next(old_tuple, rid)) {
+    Tuple new_tuple = GenerateUpdatedTuple(*old_tuple);
+    auto lock_manager = GetExecutorContext()->GetLockManager();
+    if (txn_->IsSharedLocked(*rid)) {
+      // LOG_DEBUG("%d want upgrade %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockUpgrade(txn_, *rid);
+      // LOG_DEBUG("%d upgrade %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
+    } else if (!txn_->IsExclusiveLocked(*rid)) {
+      // LOG_DEBUG("%d want exclusive %s", txn_->GetTransactionId(), rid->ToString().c_str());
+      lock_manager->LockExclusive(txn_, *rid);
+      // LOG_DEBUG("%d exclusive %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
+    }
+    // write record 已经在update中添加了
+    if (!table_heap_->UpdateTuple(new_tuple, *rid, txn_)) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "update tuple fail");
+    }
+    for (auto &index : indexs_) {
+      Tuple old_index_tuple =
+          old_tuple->KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
+      index->index_->DeleteEntry(old_index_tuple, *rid, txn_);
+      Tuple new_index_tuple =
+          new_tuple.KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
+      index->index_->InsertEntry(new_index_tuple, *rid, txn_);
+      IndexWriteRecord index_write_record = IndexWriteRecord(*rid, table_info_->oid_, WType::UPDATE, new_index_tuple,
+                                                             index->index_oid_, GetExecutorContext()->GetCatalog());
+      index_write_record.old_tuple_ = *old_tuple;
+      txn_->AppendTableWriteRecord(index_write_record);
+    }
+    return true;
+  }
+  return false;
+}
 
 Tuple UpdateExecutor::GenerateUpdatedTuple(const Tuple &src_tuple) {
   const auto &update_attrs = plan_->GetUpdateAttr();

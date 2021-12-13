@@ -189,7 +189,7 @@ class AggregationExecutor : public AbstractExecutor {
   AggregateKey MakeAggregateKey(const Tuple *tuple) {
     std::vector<Value> keys;
     for (const auto &expr : plan_->GetGroupBys()) {
-      keys.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      keys.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {keys};
   }
@@ -198,7 +198,7 @@ class AggregationExecutor : public AbstractExecutor {
   AggregateValue MakeAggregateValue(const Tuple *tuple) {
     std::vector<Value> vals;
     for (const auto &expr : plan_->GetAggregates()) {
-      vals.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      vals.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {vals};
   }
@@ -206,11 +206,12 @@ class AggregationExecutor : public AbstractExecutor {
  private:
   /** The aggregation plan node */
   const AggregationPlanNode *plan_;
+  Transaction *txn_;
   /** The child executor that produces tuples over which the aggregation is computed */
-  std::unique_ptr<AbstractExecutor> child_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+   SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+   SimpleAggregationHashTable::Iterator aht_iterator_;
 };
 }  // namespace bustub

@@ -15,6 +15,7 @@
 #include <memory>
 #include <utility>
 
+#include "common/util/hash_util.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/distinct_plan.h"
 
@@ -53,5 +54,53 @@ class DistinctExecutor : public AbstractExecutor {
   const DistinctPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  SimpleDistinctHashTable dtb_{};
 };
+
+struct DistinctKey {
+  std::vector<Value> cols;
+  DistinctKey(){};
+  DistinctKey(std::vector<Value> other_cols) :cols(other_cols) {}
+  bool operator==(const DistinctKey &other) const {
+    for(int i=0;i<cols.size();i++){
+      if(cols[i].CompareEquals(other.cols[i])!=CmpBool::CmpTrue){
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+class SimpleDistinctHashTable {
+ public:
+  SimpleDistinctHashTable(){};
+  bool Insert(DistinctKey key){
+     if(dset_.count(key)==0){
+        dset_.insert(key);
+        return true;
+     }
+     return false;
+  }
+ private:
+  std::unordered_set<DistinctKey> dset_{};
+};
+
 }  // namespace bustub
+
+namespace std {
+
+/** Implements std::hash on AggregateKey */
+template <>
+struct hash<bustub::DistinctKey> {
+  std::size_t operator()(const bustub::DistinctKey &hash_key) const {
+    size_t curr_hash = 0;
+    for (const auto &key : hash_key.cols) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+
+}  // namespace std
