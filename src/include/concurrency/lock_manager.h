@@ -141,6 +141,13 @@ class LockManager {
         AbortTxn(abort_txn_id, rid);
       }
     }
+    for(auto&x:lock_table_[rid].req_sets_){
+       auto req_txn_id=x.first;
+       auto req_mode=x.second;
+       if(req_txn_id>txn_id&&req_mode==LockMode::EXCLUSIVE){
+          AbortTxn(req_txn_id,rid);
+       }
+    }
     // LOG_DEBUG("wound wait:%d finished",txn_id);
   }
   bool CheckGrant(Transaction *txn, const RID &rid) {
