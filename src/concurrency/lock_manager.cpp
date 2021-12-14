@@ -31,10 +31,6 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
     return true;
   }
   mu_.lock();
-  if (txn->GetState() == TransactionState::ABORTED) {
-    mu_.unlock();
-    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::DEADLOCK);
-  }
   lock_table_[rid].req_sets_[txn_id] = LockMode::SHARED;
   txn_map_[txn_id] = txn;
   mu_.unlock();
@@ -48,9 +44,7 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
       break;
     }
     mu_.unlock();
-    if (txn->GetState() != TransactionState::ABORTED) {
-      lock_table_[rid].cv_.wait(lock);
-    }
+    lock_table_[rid].cv_.wait(lock);
   }
   if (txn->GetState() == TransactionState::ABORTED) {
     mu_.lock();
@@ -86,9 +80,7 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
       break;
     }
     mu_.unlock();
-    if (txn->GetState() != TransactionState::ABORTED) {
-      lock_table_[rid].cv_.wait(lock);
-    }
+    lock_table_[rid].cv_.wait(lock);
   }
   if (txn->GetState() == TransactionState::ABORTED) {
     mu_.lock();

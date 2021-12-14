@@ -98,8 +98,6 @@ class LockManager {
  private:
   void AbortTxn(txn_id_t txn_id, const RID &rid) {
     Transaction *ex_txn = txn_map_[txn_id];
-    // abort the yunger transaction
-    ex_txn->SetState(TransactionState::ABORTED);
     // LOG_DEBUG("%d abort on %s",txn_id,rid.ToString().c_str());
     std::unordered_set<RID> lock_set;
     for (auto item : *ex_txn->GetExclusiveLockSet()) {
@@ -116,48 +114,52 @@ class LockManager {
       ex_txn->GetSharedLockSet()->erase(locked_rid);
       ex_txn->GetExclusiveLockSet()->erase(locked_rid);
       // don't notify other txn in this rid sets
-      if (locked_rid.Get() != rid.Get()) {
-        lock_table_[locked_rid].cv_.notify_all();
-      }
+      lock_table_[locked_rid].cv_.notify_all();
     }
+    // abort the yunger transaction
+    ex_txn->SetState(TransactionState::ABORTED);
     // LOG_DEBUG("%d abort finished ",txn_id);
   }
   void WoundWait(txn_id_t txn_id, const RID &rid) {
     // LOG_DEBUG("%d wound wait:%s",txn_id,rid.ToString().c_str());
     txn_id_t ex_txn_id = lock_table_[rid].exclusive_locked_txn_;
+    std::vector<txn_id_t> abort_txn_sets;
     if (ex_txn_id != INVALID_TXN_ID && ex_txn_id > txn_id) {
-      AbortTxn(ex_txn_id, rid);
+      abort_txn_sets.emplace_back(ex_txn_id);
     }
     // LOG_DEBUG("here");
     if (lock_table_[rid].req_sets_[txn_id] == LockMode::EXCLUSIVE && !lock_table_[rid].share_locked_req_sets_.empty()) {
       //  LOG_DEBUG("here2");
-      std::vector<txn_id_t> abort_txn_sets;
       for (auto &sh_txn_id : lock_table_[rid].share_locked_req_sets_) {
         if (sh_txn_id > txn_id) {
           abort_txn_sets.emplace_back(sh_txn_id);
         }
       }
-      for (auto &abort_txn_id : abort_txn_sets) {
-        AbortTxn(abort_txn_id, rid);
-      }
     }
+    bool break_wait_txn = false;
     for (auto &x : lock_table_[rid].req_sets_) {
       auto req_txn_id = x.first;
       auto req_mode = x.second;
       if (req_txn_id > txn_id &&
           (lock_table_[rid].req_sets_[txn_id] == LockMode::EXCLUSIVE || req_mode == LockMode::EXCLUSIVE)) {
-        AbortTxn(req_txn_id, rid);
-        lock_table_[rid].cv_.notify_all();
+        abort_txn_sets.emplace_back(req_txn_id);
+        break_wait_txn = true;
       }
+    }
+    for (auto &abort_txn_id : abort_txn_sets) {
+      AbortTxn(abort_txn_id, rid);
+    }
+    if (break_wait_txn) {
+      lock_table_[rid].cv_.notify_all();
     }
     // LOG_DEBUG("wound wait:%d finished",txn_id);
   }
   bool CheckGrant(Transaction *txn, const RID &rid) {
-    // LOG_DEBUG("%d checkGrant on:%s",txn_id,rid.ToString().c_str());
     if (txn->GetState() == TransactionState::ABORTED) {
       return false;
     }
     txn_id_t txn_id = txn->GetTransactionId();
+    // LOG_DEBUG("%d checkGrant on:%s",txn_id,rid.ToString().c_str());
     WoundWait(txn_id, rid);
     if (lock_table_[rid].exclusive_locked_txn_ != INVALID_TXN_ID) {
       // LOG_DEBUG("%d checkGrant on:%s finished",txn_id,rid.ToString().c_str());
