@@ -28,17 +28,16 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 void UpdateExecutor::Init() { child_executor_->Init(); }
 
 bool UpdateExecutor::Next([[maybe_unused]] Tuple *old_tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   if (child_executor_->Next(old_tuple, rid)) {
     Tuple new_tuple = GenerateUpdatedTuple(*old_tuple);
     auto lock_manager = GetExecutorContext()->GetLockManager();
     if (txn_->IsSharedLocked(*rid)) {
-      // LOG_DEBUG("%d want upgrade %s", txn_->GetTransactionId(), rid->ToString().c_str());
       lock_manager->LockUpgrade(txn_, *rid);
-      // LOG_DEBUG("%d upgrade %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
     } else if (!txn_->IsExclusiveLocked(*rid)) {
-      // LOG_DEBUG("%d want exclusive %s", txn_->GetTransactionId(), rid->ToString().c_str());
       lock_manager->LockExclusive(txn_, *rid);
-      // LOG_DEBUG("%d exclusive %s sucess", txn_->GetTransactionId(), rid->ToString().c_str());
     }
     // write record 已经在update中添加了
     if (!table_heap_->UpdateTuple(new_tuple, *rid, txn_)) {
@@ -51,7 +50,7 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *old_tuple, RID *rid) {
       Tuple new_index_tuple =
           new_tuple.KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
       index->index_->InsertEntry(new_index_tuple, *rid, txn_);
-      IndexWriteRecord index_write_record = IndexWriteRecord(*rid, table_info_->oid_, WType::UPDATE, new_index_tuple,
+      IndexWriteRecord index_write_record = IndexWriteRecord(*rid, table_info_->oid_, WType::UPDATE, new_tuple,
                                                              index->index_oid_, GetExecutorContext()->GetCatalog());
       index_write_record.old_tuple_ = *old_tuple;
       txn_->AppendTableWriteRecord(index_write_record);

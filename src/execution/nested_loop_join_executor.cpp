@@ -30,6 +30,9 @@ void NestedLoopJoinExecutor::Init() {
 }
 
 bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   if (left_rid_.GetPageId() == INVALID_PAGE_ID) {
     return false;
   }

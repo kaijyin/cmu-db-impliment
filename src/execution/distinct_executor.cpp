@@ -21,6 +21,9 @@ DistinctExecutor::DistinctExecutor(ExecutorContext *exec_ctx, const DistinctPlan
 void DistinctExecutor::Init() { child_executor_->Init(); }
 
 bool DistinctExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   while (true) {
     if (!child_executor_->Next(tuple, rid)) {
       return false;

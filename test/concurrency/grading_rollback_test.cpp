@@ -310,7 +310,9 @@ TEST_F(GradingRollbackTest, SimpleUpdateRollbackTest) {
   auto exec_ctx2 = std::make_unique<ExecutorContext>(txn2, GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
   std::vector<Tuple> result_set;
   GetExecutionEngine()->Execute(update_plan.get(), &result_set, txn2, exec_ctx2.get());
+  LOG_DEBUG("before abort");
   GetTxnManager()->Abort(txn2);
+  LOG_DEBUG("after abort");
   delete txn2;
 
   auto txn3 = GetTxnManager()->Begin();

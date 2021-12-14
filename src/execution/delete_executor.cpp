@@ -28,6 +28,9 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 void DeleteExecutor::Init() { child_executor_->Init(); }
 
 bool DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   if (child_executor_->Next(tuple, rid)) {
     auto lock_manager = GetExecutorContext()->GetLockManager();
     if (txn_->IsSharedLocked(*rid)) {

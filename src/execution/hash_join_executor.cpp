@@ -36,6 +36,9 @@ void HashJoinExecutor::Init() {
 }
 
 bool HashJoinExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   if (cur_idx_ == cur_tuples_.size()) {
     while (true) {
       if (!right_executor_->Next(&right_tuple_, &right_rid_)) {

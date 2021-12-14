@@ -24,8 +24,8 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 void SeqScanExecutor::Init() { next_itr_ = table_heap_->Begin(txn_); }
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
-  if (txn_->GetState() == TransactionState::ABORTED) {
-    return false;
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
   }
   while (next_itr_ != table_heap_->End()) {
     Tuple cur_tuple;

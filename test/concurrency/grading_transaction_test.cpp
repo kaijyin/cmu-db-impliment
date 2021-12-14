@@ -181,7 +181,7 @@ TEST_F(GradingTransactionTest, DirtyReadsTest) {
   auto key_schema = ParseCreateStatement("a bigint");
 
   GetExecutionEngine()->Execute(&insert_plan, nullptr, txn1, exec_ctx1.get());
-
+  LOG_DEBUG("here2");
   // Iterate through table to read the tuples.
   auto txn2 = GetTxnManager()->Begin(nullptr, IsolationLevel::READ_UNCOMMITTED);
   auto exec_ctx2 = std::make_unique<ExecutorContext>(txn2, GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
@@ -193,8 +193,9 @@ TEST_F(GradingTransactionTest, DirtyReadsTest) {
 
   std::vector<Tuple> result_set;
   GetExecutionEngine()->Execute(&scan_plan, &result_set, txn2, exec_ctx2.get());
-
+  LOG_DEBUG("here3");
   GetTxnManager()->Abort(txn1);
+  LOG_DEBUG("here4");
   delete txn1;
 
   // First value
@@ -370,7 +371,7 @@ TEST_F(GradingTransactionTest, RepeatableReadsTest) {
 }
 
 // NOLINTNEXTLINE
-TEST_F(GradingTransactionTest, DISABLED_IntegratedTest) {
+TEST_F(GradingTransactionTest, IntegratedTest) {
   //  txn1 ->        scan -> join -> aggregate
   //  txn2 ->    delete one tuple -> commit
   //  txn3 -> scan

@@ -28,6 +28,9 @@ NestIndexJoinExecutor::NestIndexJoinExecutor(ExecutorContext *exec_ctx, const Ne
 void NestIndexJoinExecutor::Init() { child_executor_->Init(); }
 
 bool NestIndexJoinExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   Tuple outer_tuple;
   Tuple inner_tuple;
   RID outer_rid;

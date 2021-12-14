@@ -25,6 +25,9 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 void IndexScanExecutor::Init() { next_itr_ = index_->GetBeginIterator(); }
 
 bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   Tuple cur_tuple;
   RID cur_rid;
   while (!next_itr_.IsEnd()) {

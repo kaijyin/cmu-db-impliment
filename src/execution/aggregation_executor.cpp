@@ -38,6 +38,9 @@ void AggregationExecutor::Init() {
 }
 
 bool AggregationExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   while (aht_iterator_ != aht_.End()) {
     auto &group_bys = aht_iterator_.Key().group_bys_;
     auto &aggregates = aht_iterator_.Val().aggregates_;

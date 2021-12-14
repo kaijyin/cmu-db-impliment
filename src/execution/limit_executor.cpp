@@ -24,6 +24,9 @@ void LimitExecutor::Init() {
 }
 
 bool LimitExecutor::Next(Tuple *tuple, RID *rid) {
+  if (GetExecutorContext()->GetTransaction()->GetState() == TransactionState::ABORTED) {
+    throw TransactionAbortException(GetExecutorContext()->GetTransaction()->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   if (remain_ == 0 || !child_executor_->Next(tuple, rid)) {
     return false;
   }

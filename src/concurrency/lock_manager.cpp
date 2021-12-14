@@ -27,24 +27,30 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::LOCK_ON_SHRINKING);
   }
-   if(txn->IsSharedLocked(rid)){
+  if (txn->IsSharedLocked(rid)) {
     return true;
   }
   mu_.lock();
+  if (txn->GetState() == TransactionState::ABORTED) {
+    mu_.unlock();
+    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::DEADLOCK);
+  }
   lock_table_[rid].req_sets_[txn_id] = LockMode::SHARED;
   txn_map_[txn_id] = txn;
   mu_.unlock();
   std::unique_lock lock(latch_);
   while (txn->GetState() != TransactionState::ABORTED) {
     mu_.lock();
-    if (CheckGrant(txn_id, rid)) {
+    if (CheckGrant(txn, rid)) {
       lock_table_[rid].req_sets_.erase(txn_id);
       lock_table_[rid].share_locked_req_sets_.emplace(txn_id);
       mu_.unlock();
       break;
     }
     mu_.unlock();
-    lock_table_[rid].cv_.wait(lock);
+    if (txn->GetState() != TransactionState::ABORTED) {
+      lock_table_[rid].cv_.wait(lock);
+    }
   }
   if (txn->GetState() == TransactionState::ABORTED) {
     mu_.lock();
@@ -63,7 +69,7 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::LOCK_ON_SHRINKING);
   }
-  if(txn->IsExclusiveLocked(rid)){
+  if (txn->IsExclusiveLocked(rid)) {
     return true;
   }
   mu_.lock();
@@ -73,14 +79,16 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
   std::unique_lock lock(latch_);
   while (txn->GetState() != TransactionState::ABORTED) {
     mu_.lock();
-    if (CheckGrant(txn_id, rid)) {
+    if (CheckGrant(txn, rid)) {
       lock_table_[rid].req_sets_.erase(txn_id);
       lock_table_[rid].exclusive_locked_txn_ = txn_id;
       mu_.unlock();
       break;
     }
     mu_.unlock();
-    lock_table_[rid].cv_.wait(lock);
+    if (txn->GetState() != TransactionState::ABORTED) {
+      lock_table_[rid].cv_.wait(lock);
+    }
   }
   if (txn->GetState() == TransactionState::ABORTED) {
     mu_.lock();
@@ -106,12 +114,14 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
   std::unique_lock lock(latch_);
   while (txn->GetState() != TransactionState::ABORTED) {
     mu_.lock();
-    if (CheckGrant(txn_id, rid)) {
+    // LOG_DEBUG("%d checkGrant on:%s",txn_id,rid.ToString().c_str());
+    if (CheckGrant(txn, rid)) {
       lock_table_[rid].req_sets_.erase(txn_id);
       lock_table_[rid].exclusive_locked_txn_ = txn_id;
       mu_.unlock();
       break;
     }
+    // LOG_DEBUG("%d checkGrant on:%s finished",txn_id,rid.ToString().c_str());
     mu_.unlock();
     lock_table_[rid].cv_.wait(lock);
   }
