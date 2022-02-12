@@ -1,9 +1,11 @@
   
 
 ## 数据库公开课CMU-15445
-   **课程主页**:https://15445.courses.cs.cmu.edu/fall2020/index.html
-   Gradescope Entry code:**5VX7JZ**
-   完成该教学数据库**所有课程实验**, Gradescope测试点均**满分通过**。
+   
+
+ - **课程主页**:https://15445.courses.cs.cmu.edu/fall2020/index.html
+ - Gradescope Entry code:**5VX7JZ**
+ - 完成该教学数据库**所有课程实验**, Gradescope测试点均**满分通过**。
 
 ### 实验内容
    课程实验包括:**并行缓冲页面管理器（Buffer Pool Manager）,B+树索引,可扩展哈希索引,索引并发控制,请求执行(Query Execution),事务并发控制,日志恢复**等。
