@@ -1,3 +1,10 @@
-### 数据库公开课CMU-15445
-   课程主页:[传送门](https://15445.courses.cs.cmu.edu/fall2020/index.html) GradeScope
-   完成该教学数据库中所有课程实验, Gradescope测试点均满分通过。
+---
+title: 2022-02-12未命名文件 
+tags: 新建,模板,小书匠
+category: /小书匠/日记/2022-02
+renderNumberedHeading: true
+grammar_cjkRuby: true
+---
+
+
+欢迎使用 **{小书匠}(xiaoshujiang)编辑器**，您可以通过 `小书匠主按钮>模板` 里的模板管理来改变新建文章的内容。
