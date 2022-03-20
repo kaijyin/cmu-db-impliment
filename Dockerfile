@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 CMD bash
 
 # Install Ubuntu packages.
@@ -16,4 +16,21 @@ RUN apt-get -y update && \
       g++-7 \
       pkg-config \
       valgrind \
-      zlib1g-dev
+      zlib1g-dev \
+      # s.0681
+      gdb-multiarch \
+      qemu-system-misc \
+      gcc-riscv64-linux-gnu \
+      binutils-riscv64-linux-gnu \
+      # cs144
+      graphviz \
+      bash \
+      coreutils\
+      libpcap-dev \
+      iptables \
+      mininet \
+      tcpdump \
+      telnet \
+      wireshark \
+      socat \
+      netcat-openbsd \
