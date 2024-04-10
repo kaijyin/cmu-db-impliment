@@ -6,44 +6,69 @@
 //
 // Identification: src/include/execution/plans/seq_scan_plan.h
 //
-// Copyright (c) 2015-19, Carnegie Mellon University Database Group
+// Copyright (c) 2015-2021, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "binder/table_ref/bound_base_table_ref.h"
 #include "catalog/catalog.h"
+#include "catalog/schema.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
 
 namespace bustub {
+
 /**
- * SeqScanPlanNode identifies a table that should be scanned with an optional predicate.
+ * The SeqScanPlanNode represents a sequential table scan operation.
  */
 class SeqScanPlanNode : public AbstractPlanNode {
  public:
   /**
-   * Creates a new sequential scan plan node.
-   * @param output the output format of this scan plan node
-   * @param predicate the predicate to scan with, tuples are returned if predicate(tuple) = true or predicate = nullptr
-   * @param table_oid the identifier of table to be scanned
+   * Construct a new SeqScanPlanNode instance.
+   * @param output The output schema of this sequential scan plan node
+   * @param table_oid The identifier of table to be scanned
    */
-  SeqScanPlanNode(const Schema *output, const AbstractExpression *predicate, table_oid_t table_oid)
-      : AbstractPlanNode(output, {}), predicate_{predicate}, table_oid_(table_oid) {}
+  SeqScanPlanNode(SchemaRef output, table_oid_t table_oid, std::string table_name,
+                  AbstractExpressionRef filter_predicate = nullptr)
+      : AbstractPlanNode(std::move(output), {}),
+        table_oid_{table_oid},
+        table_name_(std::move(table_name)),
+        filter_predicate_(std::move(filter_predicate)) {}
 
-  PlanType GetType() const override { return PlanType::SeqScan; }
+  /** @return The type of the plan node */
+  auto GetType() const -> PlanType override { return PlanType::SeqScan; }
 
-  /** @return the predicate to test tuples against; tuples should only be returned if they evaluate to true */
-  const AbstractExpression *GetPredicate() const { return predicate_; }
+  /** @return The identifier of the table that should be scanned */
+  auto GetTableOid() const -> table_oid_t { return table_oid_; }
 
-  /** @return the identifier of the table that should be scanned */
-  table_oid_t GetTableOid() const { return table_oid_; }
+  static auto InferScanSchema(const BoundBaseTableRef &table_ref) -> Schema;
 
- private:
-  /** The predicate that all returned tuples must satisfy. */
-  const AbstractExpression *predicate_;
-  /** The table whose tuples should be scanned. */
+  BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(SeqScanPlanNode);
+
+  /** The table whose tuples should be scanned */
   table_oid_t table_oid_;
+
+  /** The table name */
+  std::string table_name_;
+
+  /** The predicate to filter in seqscan.
+   * For Fall 2023, We'll enable the MergeFilterScan rule, so we can further support index point lookup
+   */
+  AbstractExpressionRef filter_predicate_;
+
+ protected:
+  auto PlanNodeToString() const -> std::string override {
+    if (filter_predicate_) {
+      return fmt::format("SeqScan {{ table={}, filter={} }}", table_name_, filter_predicate_);
+    }
+    return fmt::format("SeqScan {{ table={} }}", table_name_);
+  }
 };
 
 }  // namespace bustub

@@ -22,38 +22,44 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
+
 /**
- * Delete executes a delete from a table.
- * Deleted tuple info come from a child executor.
+ * DeletedExecutor executes a delete on a table.
+ * Deleted values are always pulled from a child.
  */
 class DeleteExecutor : public AbstractExecutor {
  public:
   /**
-   * Creates a new delete executor.
-   * @param exec_ctx the executor context
-   * @param plan the delete plan to be executed
-   * @param child_executor the child executor (either sequential scan or index scan) to obtain tuple info
+   * Construct a new DeleteExecutor instance.
+   * @param exec_ctx The executor context
+   * @param plan The delete plan to be executed
+   * @param child_executor The child executor that feeds the delete
    */
   DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                  std::unique_ptr<AbstractExecutor> &&child_executor);
 
-  const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
-
+  /** Initialize the delete */
   void Init() override;
 
-  // Note that Delete does not make use of the tuple pointer being passed in.
-  // We throw exception if the delete failed for any reason, and return false if all delete succeeded.
-  // Delete from indexes if necessary.
-  bool Next([[maybe_unused]] Tuple *tuple, RID *rid) override;
+  /**
+   * Yield the number of rows deleted from the table.
+   * @param[out] tuple The integer tuple indicating the number of rows deleted from the table
+   * @param[out] rid The next tuple RID produced by the delete (ignore, not used)
+   * @return `true` if a tuple was produced, `false` if there are no more tuples
+   *
+   * NOTE: DeleteExecutor::Next() does not use the `rid` out-parameter.
+   * NOTE: DeleteExecutor::Next() returns true with the number of deleted rows produced only once.
+   */
+  auto Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool override;
+
+  /** @return The output schema for the delete */
+  auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
-  /** The delete plan node to be executed. */
+  /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
-  /** The child executor to obtain rid from. */
+
+  /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  Transaction *txn_;
-  TableMetadata *table_info_;
-  TableHeap *table_heap_;
-  std::vector<bustub::IndexInfo *> indexs_;
 };
 }  // namespace bustub

@@ -33,43 +33,34 @@ enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
  * It actually serves as a header part for each B+ tree page and
  * contains information shared by both leaf page and internal page.
  *
- * Header format (size in byte, 24 bytes in total):
- * ----------------------------------------------------------------------------
- * | PageType (4) | LSN (4) | CurrentSize (4) | MaxSize (4) |
- * ----------------------------------------------------------------------------
- * | ParentPageId (4) | PageId(4) |
- * ----------------------------------------------------------------------------
+ * Header format (size in byte, 12 bytes in total):
+ * ---------------------------------------------------------
+ * | PageType (4) | CurrentSize (4) | MaxSize (4) |  ...   |
+ * ---------------------------------------------------------
  */
 class BPlusTreePage {
  public:
-  bool IsLeafPage() const;
-  bool IsRootPage() const;
+  // Delete all constructor / destructor to ensure memory safety
+  BPlusTreePage() = delete;
+  BPlusTreePage(const BPlusTreePage &other) = delete;
+  ~BPlusTreePage() = delete;
+
+  auto IsLeafPage() const -> bool;
   void SetPageType(IndexPageType page_type);
 
-  int GetSize() const;
+  auto GetSize() const -> int;
   void SetSize(int size);
   void IncreaseSize(int amount);
 
-  int GetMaxSize() const;
+  auto GetMaxSize() const -> int;
   void SetMaxSize(int max_size);
-  int GetMinSize() const;
-
-  page_id_t GetParentPageId() const;
-  void SetParentPageId(page_id_t parent_page_id);
-
-  page_id_t GetPageId() const;
-  void SetPageId(page_id_t page_id);
-
-  void SetLSN(lsn_t lsn = INVALID_LSN);
+  auto GetMinSize() const -> int;
 
  private:
-  // member variable, attributes that both internal and leaf page share
+  // Member variables, attributes that both internal and leaf page share
   IndexPageType page_type_ __attribute__((__unused__));
-  lsn_t lsn_ __attribute__((__unused__));
   int size_ __attribute__((__unused__));
   int max_size_ __attribute__((__unused__));
-  page_id_t parent_page_id_ __attribute__((__unused__));
-  page_id_t page_id_ __attribute__((__unused__));
 };
 
 }  // namespace bustub

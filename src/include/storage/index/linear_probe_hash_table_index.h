@@ -13,11 +13,12 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "container/disk/hash/linear_probe_hash_table.h"
 #include "container/hash/hash_function.h"
-#include "container/hash/linear_probe_hash_table.h"
 #include "storage/index/index.h"
 
 namespace bustub {
@@ -27,12 +28,12 @@ namespace bustub {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 class LinearProbeHashTableIndex : public Index {
  public:
-  LinearProbeHashTableIndex(IndexMetadata *metadata, BufferPoolManager *buffer_pool_manager, size_t num_buckets,
-                            const HashFunction<KeyType> &hash_fn);
+  LinearProbeHashTableIndex(std::unique_ptr<IndexMetadata> &&metadata, BufferPoolManager *buffer_pool_manager,
+                            size_t num_buckets, const HashFunction<KeyType> &hash_fn);
 
   ~LinearProbeHashTableIndex() override = default;
 
-  void InsertEntry(const Tuple &key, RID rid, Transaction *transaction) override;
+  auto InsertEntry(const Tuple &key, RID rid, Transaction *transaction) -> bool override;
 
   void DeleteEntry(const Tuple &key, RID rid, Transaction *transaction) override;
 

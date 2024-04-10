@@ -12,118 +12,86 @@
 
 #include "concurrency/transaction_manager.h"
 
+#include <memory>
+#include <mutex>  // NOLINT
+#include <optional>
+#include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "catalog/catalog.h"
+#include "catalog/column.h"
+#include "catalog/schema.h"
+#include "common/config.h"
+#include "common/exception.h"
+#include "common/macros.h"
+#include "concurrency/transaction.h"
+#include "execution/execution_common.h"
 #include "storage/table/table_heap.h"
+#include "storage/table/tuple.h"
+#include "type/type_id.h"
+#include "type/value.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
-std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
+auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * {
+  std::unique_lock<std::shared_mutex> l(txn_map_mutex_);
+  auto txn_id = next_txn_id_++;
+  auto txn = std::make_unique<Transaction>(txn_id, isolation_level);
+  auto *txn_ref = txn.get();
+  txn_map_.insert(std::make_pair(txn_id, std::move(txn)));
 
-Transaction *TransactionManager::Begin(Transaction *txn, IsolationLevel isolation_level) {
-  // Acquire the global transaction latch in shared mode.
-  global_txn_latch_.RLock();
+  // TODO(fall2023): set the timestamps here. Watermark updated below.
 
-  if (txn == nullptr) {
-    txn = new Transaction(next_txn_id_++, isolation_level);
-  }
-
-  txn_map[txn->GetTransactionId()] = txn;
-   if (enable_logging) {
-    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::BEGIN);
-    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
-    txn->SetPrevLSN(lsn);
-  }
-  return txn;
+  running_txns_.AddTxn(txn_ref->read_ts_);
+  return txn_ref;
 }
 
-void TransactionManager::Commit(Transaction *txn) {
-  txn->SetState(TransactionState::COMMITTED);
+auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
 
-  // Perform all deletes before we commit.
-  auto write_set = txn->GetWriteSet();
-  while (!write_set->empty()) {
-    auto &item = write_set->back();
-    auto table = item.table_;
-    if (item.wtype_ == WType::DELETE) {
-      // Note that this also releases the lock when holding the page latch.
-      table->ApplyDelete(item.rid_, txn);
+auto TransactionManager::Commit(Transaction *txn) -> bool {
+  std::unique_lock<std::mutex> commit_lck(commit_mutex_);
+
+  // TODO(fall2023): acquire commit ts!
+
+  if (txn->state_ != TransactionState::RUNNING) {
+    throw Exception("txn not in running state");
+  }
+
+  if (txn->GetIsolationLevel() == IsolationLevel::SERIALIZABLE) {
+    if (!VerifyTxn(txn)) {
+      commit_lck.unlock();
+      Abort(txn);
+      return false;
     }
-    write_set->pop_back();
   }
-  write_set->clear();
-  // Release all the locks.
-  ReleaseLocks(txn);
-  // Release the global transaction latch.
-  if (enable_logging) {
-    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT);
-    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
-    txn->SetPrevLSN(lsn);
-    log_manager_->WaitFlush();
-  }
-  global_txn_latch_.RUnlock();
+
+  // TODO(fall2023): Implement the commit logic!
+
+  std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
+
+  // TODO(fall2023): set commit timestamp + update last committed timestamp here.
+
+  txn->state_ = TransactionState::COMMITTED;
+  running_txns_.UpdateCommitTs(txn->commit_ts_);
+  running_txns_.RemoveTxn(txn->read_ts_);
+
+  return true;
 }
 
 void TransactionManager::Abort(Transaction *txn) {
-  txn->SetState(TransactionState::ABORTED);
-  // Rollback before releasing the lock.
-  auto table_write_set = txn->GetWriteSet();
-  while (!table_write_set->empty()) {
-    auto &item = table_write_set->back();
-    auto table = item.table_;
-    if (item.wtype_ == WType::DELETE) {
-      table->RollbackDelete(item.rid_, txn);
-    } else if (item.wtype_ == WType::INSERT) {
-      // Note that this also releases the lock when holding the page latch.
-      table->ApplyDelete(item.rid_, txn);
-    } else if (item.wtype_ == WType::UPDATE) {
-      table->UpdateTuple(item.tuple_, item.rid_, txn);
-    }
-    table_write_set->pop_back();
+  if (txn->state_ != TransactionState::RUNNING && txn->state_ != TransactionState::TAINTED) {
+    throw Exception("txn not in running / tainted state");
   }
-  table_write_set->clear();
-  // Rollback index updates
-  auto index_write_set = txn->GetIndexWriteSet();
-  while (!index_write_set->empty()) {
-    auto &item = index_write_set->back();
-    auto catalog = item.catalog_;
-    // Metadata identifying the table that should be deleted from.
-    TableMetadata *table_info = catalog->GetTable(item.table_oid_);
-    IndexInfo *index_info = catalog->GetIndex(item.index_oid_);
-    auto new_key = item.tuple_.KeyFromTuple(table_info->schema_, *(index_info->index_->GetKeySchema()),
-                                            index_info->index_->GetKeyAttrs());
-    if (item.wtype_ == WType::DELETE) {
-      index_info->index_->InsertEntry(new_key, item.rid_, txn);
-    } else if (item.wtype_ == WType::INSERT) {
-      index_info->index_->DeleteEntry(new_key, item.rid_, txn);
-    } else if (item.wtype_ == WType::UPDATE) {
-      // Delete the new key and insert the old key
-      index_info->index_->DeleteEntry(new_key, item.rid_, txn);
-      auto old_key = item.old_tuple_.KeyFromTuple(table_info->schema_, *(index_info->index_->GetKeySchema()),
-                                                  index_info->index_->GetKeyAttrs());
-      index_info->index_->InsertEntry(old_key, item.rid_, txn);
-    }
-    index_write_set->pop_back();
-  }
-  table_write_set->clear();
-  index_write_set->clear();
 
-  // Release all the locks.
-  ReleaseLocks(txn);
-  if (enable_logging) {
-    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ABORT);
-    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
-    txn->SetPrevLSN(lsn);
-    log_manager_->WaitFlush();
-  }
-  // Release the global transaction latch.
-  global_txn_latch_.RUnlock();
+  // TODO(fall2023): Implement the abort logic!
+
+  std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
+  txn->state_ = TransactionState::ABORTED;
+  running_txns_.RemoveTxn(txn->read_ts_);
 }
 
-void TransactionManager::BlockAllTransactions() { global_txn_latch_.WLock(); }
-
-void TransactionManager::ResumeTransactions() { global_txn_latch_.WUnlock(); }
+void TransactionManager::GarbageCollection() { UNIMPLEMENTED("not implemented"); }
 
 }  // namespace bustub

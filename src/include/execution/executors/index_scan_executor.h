@@ -35,20 +35,14 @@ class IndexScanExecutor : public AbstractExecutor {
    */
   IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan);
 
-  const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
+  auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
   void Init() override;
 
-  bool Next(Tuple *tuple, RID *rid) override;
+  auto Next(Tuple *tuple, RID *rid) -> bool override;
 
  private:
   /** The index scan plan node to be executed. */
   const IndexScanPlanNode *plan_;
-  Transaction *txn_;
-  IndexInfo *index_info_;
-  TableMetadata *table_info_;
-  TableHeap *table_heap_;
-  BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>> *index_;
-  IndexIterator<GenericKey<8>, RID, GenericComparator<8>> next_itr_;
 };
 }  // namespace bustub

@@ -45,7 +45,7 @@ class HashTableBlockPage {
    * @param bucket_ind the index in the block to get the key at
    * @return key at index bucket_ind of the block
    */
-  KeyType KeyAt(slot_offset_t bucket_ind) const;
+  auto KeyAt(slot_offset_t bucket_ind) const -> KeyType;
 
   /**
    * Gets the value at an index in the block.
@@ -53,7 +53,7 @@ class HashTableBlockPage {
    * @param bucket_ind the index in the block to get the value at
    * @return value at index bucket_ind of the block
    */
-  ValueType ValueAt(slot_offset_t bucket_ind) const;
+  auto ValueAt(slot_offset_t bucket_ind) const -> ValueType;
 
   /**
    * Attempts to insert a key and value into an index in the block.
@@ -68,7 +68,7 @@ class HashTableBlockPage {
    * index is marked as occupied before the key and value can be inserted,
    * Insert returns false.
    */
-  bool Insert(slot_offset_t bucket_ind, const KeyType &key, const ValueType &value);
+  auto Insert(slot_offset_t bucket_ind, const KeyType &key, const ValueType &value) -> bool;
 
   /**
    * Removes a key and value at index.
@@ -83,7 +83,7 @@ class HashTableBlockPage {
    * @param bucket_ind index to look at
    * @return true if the index is occupied, false otherwise
    */
-  bool IsOccupied(slot_offset_t bucket_ind) const;
+  auto IsOccupied(slot_offset_t bucket_ind) const -> bool;
 
   /**
    * Returns whether or not an index is readable (valid key/value pair)
@@ -91,14 +91,60 @@ class HashTableBlockPage {
    * @param bucket_ind index to look at
    * @return true if the index is readable, false otherwise
    */
-  bool IsReadable(slot_offset_t bucket_ind) const;
+  auto IsReadable(slot_offset_t bucket_ind) const -> bool;
+
+  /**
+   * Scan the bucket and collect values that have the matching key
+   *
+   * @return true if at least one key matched
+   */
+  auto GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) -> bool;
+
+  /**
+   * Attempts to insert a key and value in the bucket.
+   * The insert is thread safe. It uses compare and swap to claim the index,
+   * and then writes the key and value into the index, and then marks the
+   * index as readable.
+   *
+   * @param key key to insert
+   * @param value value to insert
+   * @return true if inserted, false if duplicate KV pair or bucket is full
+   */
+  auto Insert(KeyType key, ValueType value, KeyComparator cmp) -> bool;
+
+  /**
+   * Removes a key and value.
+   * @return true if removed, false if not found
+   */
+  auto Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool;
+
+  /**
+   * @return the number of readable elements, i.e. current size
+   */
+  auto NumReadable() -> uint32_t;
+
+  /**
+   * @return whether the bucket is full
+   */
+  auto IsFull() -> bool;
+
+  /**
+   * @return whether the bucket is empty
+   */
+  auto IsEmpty() -> bool;
+
+  /**
+   * Prints the bucket's occupancy information
+   */
+  void PrintBucket();
 
  private:
   std::atomic_char occupied_[(BLOCK_ARRAY_SIZE - 1) / 8 + 1];
 
   // 0 if tombstone/brand new (never occupied), 1 otherwise.
   std::atomic_char readable_[(BLOCK_ARRAY_SIZE - 1) / 8 + 1];
-  MappingType array_[0];
+  // Flexible array member for page data.
+  MappingType array_[1];
 };
 
 }  // namespace bustub

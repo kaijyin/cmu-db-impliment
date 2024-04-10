@@ -13,95 +13,130 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
+#include <memory>
+#include <mutex>  // NOLINT
+#include <optional>
+#include <shared_mutex>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
+#include "catalog/schema.h"
 #include "common/config.h"
-#include "concurrency/lock_manager.h"
 #include "concurrency/transaction.h"
+#include "concurrency/watermark.h"
 #include "recovery/log_manager.h"
+#include "storage/table/table_heap.h"
+#include "storage/table/tuple.h"
 
 namespace bustub {
-
 /**
  * TransactionManager keeps track of all the transactions running in the system.
  */
 class TransactionManager {
  public:
-  explicit TransactionManager(LockManager *lock_manager, LogManager *log_manager = nullptr)
-      : lock_manager_(lock_manager), log_manager_(log_manager) {}
-
+  TransactionManager() = default;
   ~TransactionManager() = default;
 
   /**
    * Begins a new transaction.
-   * @param txn an optional transaction object to be initialized, otherwise a new transaction is created.
    * @param isolation_level an optional isolation level of the transaction.
    * @return an initialized transaction
    */
-  Transaction *Begin(Transaction *txn = nullptr, IsolationLevel isolation_level = IsolationLevel::REPEATABLE_READ);
+  auto Begin(IsolationLevel isolation_level = IsolationLevel::SNAPSHOT_ISOLATION) -> Transaction *;
 
   /**
    * Commits a transaction.
-   * @param txn the transaction to commit
+   * @param txn the transaction to commit, the txn will be managed by the txn manager so no need to delete it by
+   * yourself
    */
-  void Commit(Transaction *txn);
+  auto Commit(Transaction *txn) -> bool;
 
   /**
    * Aborts a transaction
-   * @param txn the transaction to abort
+   * @param txn the transaction to abort, the txn will be managed by the txn manager so no need to delete it by yourself
    */
   void Abort(Transaction *txn);
 
   /**
-   * Global list of running transactions
+   * @brief Update an undo link that links table heap tuple to the first undo log.
+   * Before updating, `check` function will be called to ensure validity.
    */
+  auto UpdateUndoLink(RID rid, std::optional<UndoLink> prev_link,
+                      std::function<bool(std::optional<UndoLink>)> &&check = nullptr) -> bool;
 
-  /** The transaction map is a global list of all the running transactions in the system. */
-  static std::unordered_map<txn_id_t, Transaction *> txn_map;
+  /** @brief Get the first undo log of a table heap tuple. */
+  auto GetUndoLink(RID rid) -> std::optional<UndoLink>;
 
-  /**
-   * Locates and returns the transaction with the given transaction ID.
-   * @param txn_id the id of the transaction to be found, it must exist!
-   * @return the transaction with the given transaction id
-   */
-  static Transaction *GetTransaction(txn_id_t txn_id) {
-    assert(TransactionManager::txn_map.find(txn_id) != TransactionManager::txn_map.end());
-    auto *res = TransactionManager::txn_map[txn_id];
-    assert(res != nullptr);
-    return res;
-  }
+  /** @brief Access the transaction undo log buffer and get the undo log. Return nullopt if the txn does not exist. Will
+   * still throw an exception if the index is out of range. */
+  auto GetUndoLogOptional(UndoLink link) -> std::optional<UndoLog>;
 
-  /** Prevents all transactions from performing operations, used for checkpointing. */
-  void BlockAllTransactions();
+  /** @brief Access the transaction undo log buffer and get the undo log. Except when accessing the current txn buffer,
+   * you should always call this function to get the undo log instead of manually retrieve the txn shared_ptr and access
+   * the buffer. */
+  auto GetUndoLog(UndoLink link) -> UndoLog;
 
-  /** Resumes all transactions, used for checkpointing. */
-  void ResumeTransactions();
+  /** @brief Get the lowest read timestamp in the system. */
+  auto GetWatermark() -> timestamp_t { return running_txns_.GetWatermark(); }
+
+  /** @brief Stop-the-world garbage collection. Will be called only when all transactions are not accessing the table
+   * heap. */
+  void GarbageCollection();
+
+  /** protects txn map */
+  std::shared_mutex txn_map_mutex_;
+  /** All transactions, running or committed */
+  std::unordered_map<txn_id_t, std::shared_ptr<Transaction>> txn_map_;
+
+  struct PageVersionInfo {
+    /** protects the map */
+    std::shared_mutex mutex_;
+    /** Stores previous version info for all slots. Note: DO NOT use `[x]` to access it because
+     * it will create new elements even if it does not exist. Use `find` instead.
+     */
+    std::unordered_map<slot_offset_t, UndoLink> prev_link_;
+  };
+
+  /** protects version info */
+  std::shared_mutex version_info_mutex_;
+  /** Stores the previous version of each tuple in the table heap. Do not directly access this field. Use the helper
+   * functions in `transaction_manager_impl.cpp`. */
+  std::unordered_map<page_id_t, std::shared_ptr<PageVersionInfo>> version_info_;
+
+  /** Stores all the read_ts of running txns so as to facilitate garbage collection. */
+  Watermark running_txns_{0};
+
+  /** Only one txn is allowed to commit at a time */
+  std::mutex commit_mutex_;
+  /** The last committed timestamp. */
+  std::atomic<timestamp_t> last_commit_ts_{0};
+
+  /** Catalog */
+  Catalog *catalog_;
+
+  std::atomic<txn_id_t> next_txn_id_{TXN_START_ID};
 
  private:
-  /**
-   * Releases all the locks held by the given transaction.
-   * @param txn the transaction whose locks should be released
-   */
-  void ReleaseLocks(Transaction *txn) {
-    std::unordered_set<RID> lock_set;
-    for (auto item : *txn->GetExclusiveLockSet()) {
-      lock_set.emplace(item);
-    }
-    for (auto item : *txn->GetSharedLockSet()) {
-      lock_set.emplace(item);
-    }
-    for (auto locked_rid : lock_set) {
-      lock_manager_->Unlock(txn, locked_rid);
-    }
-  }
-
-  std::atomic<txn_id_t> next_txn_id_{0};
-  LockManager *lock_manager_ __attribute__((__unused__));
-  LogManager *log_manager_ __attribute__((__unused__));
-
-  /** The global transaction latch is used for checkpointing. */
-  ReaderWriterLatch global_txn_latch_;
+  /** @brief Verify if a txn satisfies serializability. We will not test this function and you can change / remove it as
+   * you want. */
+  auto VerifyTxn(Transaction *txn) -> bool;
 };
+
+/**
+ * @brief Update the tuple and its undo link in the table heap atomically.
+ */
+auto UpdateTupleAndUndoLink(
+    TransactionManager *txn_mgr, RID rid, std::optional<UndoLink> undo_link, TableHeap *table_heap, Transaction *txn,
+    const TupleMeta &meta, const Tuple &tuple,
+    std::function<bool(const TupleMeta &meta, const Tuple &tuple, RID rid, std::optional<UndoLink>)> &&check = nullptr)
+    -> bool;
+
+/**
+ * @brief Get the tuple and its undo link in the table heap atomically.
+ */
+auto GetTupleAndUndoLink(TransactionManager *txn_mgr, TableHeap *table_heap, RID rid)
+    -> std::tuple<TupleMeta, Tuple, std::optional<UndoLink>>;
 
 }  // namespace bustub

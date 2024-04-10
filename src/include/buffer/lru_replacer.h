@@ -6,7 +6,7 @@
 //
 // Identification: src/include/buffer/lru_replacer.h
 //
-// Copyright (c) 2015-2019, Carnegie Mellon University Database Group
+// Copyright (c) 2015-2021, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,7 +14,6 @@
 
 #include <list>
 #include <mutex>  // NOLINT
-#include <unordered_map>
 #include <vector>
 
 #include "buffer/replacer.h"
@@ -23,7 +22,7 @@
 namespace bustub {
 
 /**
- * LRUReplacer implements the lru replacement policy, which approximates the Least Recently Used policy.
+ * LRUReplacer implements the Least Recently Used replacement policy.
  */
 class LRUReplacer : public Replacer {
  public:
@@ -38,19 +37,16 @@ class LRUReplacer : public Replacer {
    */
   ~LRUReplacer() override;
 
-  bool Victim(frame_id_t *frame_id) override;
+  auto Victim(frame_id_t *frame_id) -> bool override;
 
   void Pin(frame_id_t frame_id) override;
 
   void Unpin(frame_id_t frame_id) override;
 
-  size_t Size() override;
+  auto Size() -> size_t override;
 
  private:
-  size_t capcity_;
-  std::mutex mu_;
-  std::list<frame_id_t> replace_lst_;
-  std::unordered_map<frame_id_t, std::list<frame_id_t>::iterator> frame_map_;
+  // TODO(student): implement me!
 };
 
 }  // namespace bustub

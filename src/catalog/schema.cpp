@@ -18,7 +18,7 @@
 
 namespace bustub {
 
-Schema::Schema(const std::vector<Column> &columns) : tuple_is_inlined_(true) {
+Schema::Schema(const std::vector<Column> &columns) {
   uint32_t curr_offset = 0;
   for (uint32_t index = 0; index < columns.size(); index++) {
     Column column = columns[index];
@@ -29,7 +29,11 @@ Schema::Schema(const std::vector<Column> &columns) : tuple_is_inlined_(true) {
     }
     // set column offset
     column.column_offset_ = curr_offset;
-    curr_offset += column.GetFixedLength();
+    if (column.IsInlined()) {
+      curr_offset += column.GetStorageSize();
+    } else {
+      curr_offset += sizeof(uint32_t);
+    }
 
     // add column
     this->columns_.push_back(column);
@@ -38,7 +42,23 @@ Schema::Schema(const std::vector<Column> &columns) : tuple_is_inlined_(true) {
   length_ = curr_offset;
 }
 
-std::string Schema::ToString() const {
+auto Schema::ToString(bool simplified) const -> std::string {
+  if (simplified) {
+    std::ostringstream os;
+    bool first = true;
+    os << "(";
+    for (uint32_t i = 0; i < GetColumnCount(); i++) {
+      if (first) {
+        first = false;
+      } else {
+        os << ", ";
+      }
+      os << columns_[i].ToString(simplified);
+    }
+    os << ")";
+    return (os.str());
+  }
+
   std::ostringstream os;
 
   os << "Schema["

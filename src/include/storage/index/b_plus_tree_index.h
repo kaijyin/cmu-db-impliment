@@ -12,9 +12,11 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "container/hash/hash_function.h"
 #include "storage/index/b_plus_tree.h"
 #include "storage/index/index.h"
 
@@ -25,25 +27,37 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeIndex : public Index {
  public:
-  BPlusTreeIndex(IndexMetadata *metadata, BufferPoolManager *buffer_pool_manager);
+  BPlusTreeIndex(std::unique_ptr<IndexMetadata> &&metadata, BufferPoolManager *buffer_pool_manager);
 
-  void InsertEntry(const Tuple &key, RID rid, Transaction *transaction) override;
+  auto InsertEntry(const Tuple &key, RID rid, Transaction *transaction) -> bool override;
 
   void DeleteEntry(const Tuple &key, RID rid, Transaction *transaction) override;
 
   void ScanKey(const Tuple &key, std::vector<RID> *result, Transaction *transaction) override;
 
-  INDEXITERATOR_TYPE GetBeginIterator();
+  auto GetBeginIterator() -> INDEXITERATOR_TYPE;
 
-  INDEXITERATOR_TYPE GetBeginIterator(const KeyType &key);
+  auto GetBeginIterator(const KeyType &key) -> INDEXITERATOR_TYPE;
 
-  INDEXITERATOR_TYPE GetEndIterator();
+  auto GetEndIterator() -> INDEXITERATOR_TYPE;
 
  protected:
   // comparator for key
   KeyComparator comparator_;
   // container
-  BPlusTree<KeyType, ValueType, KeyComparator> container_;
+  std::shared_ptr<BPlusTree<KeyType, ValueType, KeyComparator>> container_;
 };
+
+/** We only support index table with one integer key for now in BusTub. Hardcode everything here. */
+
+constexpr static const auto TWO_INTEGER_SIZE_B_TREE = 8;
+using IntegerKeyType_BTree = GenericKey<TWO_INTEGER_SIZE_B_TREE>;
+using IntegerValueType_BTree = RID;
+using IntegerComparatorType_BTree = GenericComparator<TWO_INTEGER_SIZE_B_TREE>;
+using BPlusTreeIndexForTwoIntegerColumn =
+    BPlusTreeIndex<IntegerKeyType_BTree, IntegerValueType_BTree, IntegerComparatorType_BTree>;
+using BPlusTreeIndexIteratorForTwoIntegerColumn =
+    IndexIterator<IntegerKeyType_BTree, IntegerValueType_BTree, IntegerComparatorType_BTree>;
+using IntegerHashFunctionType = HashFunction<IntegerKeyType_BTree>;
 
 }  // namespace bustub
