@@ -1,0 +1,8 @@
+{
+"C_Cpp.clang_format_style": "file",
+"C_Cpp.clang_format_sortIncludes": true,
+"editor.formatOnSave": true,
+"C_Cpp.clang_format_fallbackStyle": "{BasedOnStyle: Google, IndentWidth: 4, AccessModifierOffset: -4,AllowShortLoopsOnASingleLine: false,AllowShortIfStatementsOnASingleLine: true, AlignConsecutiveAssignments: true} ",
+"clang-format.executable": "/usr/bin/clang-format",
+"clang-format.assumeFilename": "${workspaceFolder}/.clang-format",
+}
