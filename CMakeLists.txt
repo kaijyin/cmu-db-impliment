@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) # Require C++17 support.
 
 # set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*,modernize-*,performance-*,clang-analyzer-*) #编译时启动特定的格式检查
 
+set(CMAKE_C_COMPILER "clang")#设置编译器为clang-14
+set(CMAKE_CXX_COMPILER "clang++")
+
 project(BusTub
         VERSION 2023.1
         DESCRIPTION "The BusTub Relational Database Management System (Educational) @ https://github.com/cmu-db/bustub"
