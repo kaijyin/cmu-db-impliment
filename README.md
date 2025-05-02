@@ -5,7 +5,7 @@
 
  - **课程主页**:https://15445.courses.cs.cmu.edu/fall2020/index.html
  - Gradescope Entry code:**5VX7JZ**
- - 完成该教学数据库**所有课程实验**, Gradescope测试点均**满分通过**。
+ - 完成该教学数据库19-21年**所有课程实验**, Gradescope测试点均**满分通过**。
  - 本仓库仅供学习参考,请勿抄袭。
 
 ### 实验内容
